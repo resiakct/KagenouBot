@@ -1,11 +1,9 @@
-// we'll dipa to tapos ill keep updating for this
 import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
 
 namespace ShadowBot {
   export interface Command {
     config: {
       name: string;
-      author: string;
       description: string;
       usage: string;
       category?: string;
@@ -15,13 +13,33 @@ namespace ShadowBot {
 }
 
 interface MinerData {
+  userID: string;
   name?: string;
+  started?: boolean;
   exp: number;
   materials: { diamondOre: number; goldOre: number; silverOre: number };
+  equipment: { pickaxe?: string; pickaxeLevel: number };
+  rank: string;
+}
+
+interface ShopItem {
+  cost: { diamondOre?: number; goldOre?: number; silverOre?: number };
+  level?: number;
+  effect?: string;
+  amount?: number;
 }
 
 function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function determineRank(exp: number): string {
+  if (exp >= 10000) return "S";
+  if (exp >= 5000) return "A";
+  if (exp >= 2500) return "B";
+  if (exp >= 1000) return "C";
+  if (exp >= 500) return "D";
+  return "E";
 }
 
 async function saveMinerData(db: any, senderID: string, data: MinerData) {
@@ -36,7 +54,16 @@ async function saveMinerData(db: any, senderID: string, data: MinerData) {
 async function getMinerData(db: any, senderID: string): Promise<MinerData> {
   const minersCollection = db.db("miners");
   const result = await minersCollection.findOne({ userID: senderID });
-  return result || { exp: 0, materials: { diamondOre: 0, goldOre: 0, silverOre: 0 } };
+  const defaultData: MinerData = {
+    userID: senderID,
+    exp: 0,
+    materials: { diamondOre: 0, goldOre: 0, silverOre: 0 },
+    equipment: { pickaxe: undefined, pickaxeLevel: 1 },
+    rank: "E",
+  };
+  const data = result ? { ...defaultData, ...result } : defaultData;
+  data.rank = determineRank(data.exp);
+  return data;
 }
 
 async function removeTradeRequest(db: any, from: string, to: string) {
@@ -47,8 +74,8 @@ async function removeTradeRequest(db: any, from: string, to: string) {
 const minesCommand: ShadowBot.Command = {
   config: {
     name: "mines",
-    description: "Manage your mining activities and resources.",
-    usage: "/mines register <name> | /mines profile | /mines inventory | /mines collect | /mines rest | /mines tournament | /mines trade <uid> <diamond> <gold> <silver> | /mines trade accept <uid>",
+    description: "Manage your mining activities, shop, and ranks.",
+    usage: "/mines register <name> | /mines start | /mines profile | /mines inventory | /mines collect | /mines rest | /mines tournament | /mines shop | /mines buy <key> | /mines trade <uid> <diamond> <gold> <silver> | /mines trade accept <uid> | /mines upgrade",
     category: "Games 🎮",
   },
   run: async ({ api, event, args, db }) => {
@@ -79,7 +106,7 @@ const minesCommand: ShadowBot.Command = {
           headerText: "Mines",
           headerSymbol: "🛑",
           headerStyle: "bold",
-          bodyText: "You are already registered as " + userData.name + ". Use /mines profile to check your status.",
+          bodyText: `You are already registered as ${userData.name}. Use /mines profile to check your status.`,
           bodyStyle: "bold",
           footerText: "Developed by: **Aljur pogoy**",
         });
@@ -92,7 +119,7 @@ const minesCommand: ShadowBot.Command = {
         headerText: "Mines",
         headerSymbol: "✅",
         headerStyle: "bold",
-        bodyText: `Registered as ${name}. Use /mines profile to check your status.`,
+        bodyText: `Registered as ${name}. Use /mines start to begin mining!`,
         bodyStyle: "bold",
         footerText: "Developed by: **Aljur pogoy**",
       });
@@ -113,12 +140,39 @@ const minesCommand: ShadowBot.Command = {
       return;
     }
 
+    if (action === "start") {
+      if (userData.started) {
+        const alreadyStarted = AuroraBetaStyler.styleOutput({
+          headerText: "Mines",
+          headerSymbol: "🛑",
+          headerStyle: "bold",
+          bodyText: "You’ve already started mining!",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(alreadyStarted, threadID, messageID);
+        return;
+      }
+      userData.started = true;
+      await saveMinerData(db, senderID.toString(), userData);
+      const startMessage = AuroraBetaStyler.styleOutput({
+        headerText: "Mines",
+        headerSymbol: "⛏️",
+        headerStyle: "bold",
+        bodyText: "Mining has begun! Use /mines collect to start gathering resources.",
+        bodyStyle: "bold",
+        footerText: "Developed by: **Aljur pogoy**",
+      });
+      await api.sendMessage(startMessage, threadID, messageID);
+      return;
+    }
+
     if (action === "profile") {
       const profileMessage = AuroraBetaStyler.styleOutput({
         headerText: "Miner Profile",
         headerSymbol: "⛏️",
         headerStyle: "bold",
-        bodyText: `Name: ${userData.name}\nEXP: ${userData.exp}`,
+        bodyText: `Name: ${userData.name}\nEXP: ${userData.exp}\nRank: ${userData.rank}`,
         bodyStyle: "bold",
         footerText: "Developed by: **Aljur pogoy**",
       });
@@ -132,7 +186,7 @@ const minesCommand: ShadowBot.Command = {
         headerText: "Miner Inventory",
         headerSymbol: "🛒",
         headerStyle: "bold",
-        bodyText: `Materials:\n- Diamond Ore: ${diamondOre}\n- Gold Ore: ${goldOre}\n- Silver Ore: ${silverOre}`,
+        bodyText: `Materials:\n- Diamond Ore: ${diamondOre}\n- Gold Ore: ${goldOre}\n- Silver Ore: ${silverOre}\nEquipment: ${userData.equipment.pickaxe || "None"} (Level ${userData.equipment.pickaxeLevel})`,
         bodyStyle: "bold",
         footerText: "Developed by: **Aljur pogoy**",
       });
@@ -141,9 +195,22 @@ const minesCommand: ShadowBot.Command = {
     }
 
     if (action === "collect") {
-      const diamonds = getRandomInt(0, 3);
-      const gold = getRandomInt(0, 5);
-      const silver = getRandomInt(0, 10);
+      if (!userData.started) {
+        const notStarted = AuroraBetaStyler.styleOutput({
+          headerText: "Mines",
+          headerSymbol: "⚠️",
+          headerStyle: "bold",
+          bodyText: "You must start mining first! Use /mines start.",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(notStarted, threadID, messageID);
+        return;
+      }
+      const equipmentLevel = userData.equipment?.pickaxeLevel || 1;
+      const diamonds = getRandomInt(0, 6) * equipmentLevel;
+      const gold = getRandomInt(0, 10) * equipmentLevel;
+      const silver = getRandomInt(0, 20) * equipmentLevel;
       const dirtChance = Math.random() < 0.3;
       let collectMessage = "";
       if (dirtChance) {
@@ -170,12 +237,13 @@ const minesCommand: ShadowBot.Command = {
     if (action === "rest") {
       const expGain = getRandomInt(50, 200);
       userData.exp += expGain;
+      userData.rank = determineRank(userData.exp);
       await saveMinerData(db, senderID.toString(), userData);
       const restMessage = AuroraBetaStyler.styleOutput({
         headerText: "Mines Rest",
         headerSymbol: "💤",
         headerStyle: "bold",
-        bodyText: `Gained ${expGain} EXP!`,
+        bodyText: `Gained ${expGain} EXP! New Rank: ${userData.rank}`,
         bodyStyle: "bold",
         footerText: "Developed by: **Aljur pogoy**",
       });
@@ -188,16 +256,220 @@ const minesCommand: ShadowBot.Command = {
       const enemy = enemies[getRandomInt(0, enemies.length - 1)];
       const expGain = getRandomInt(500, 1000);
       userData.exp += expGain;
+      userData.rank = determineRank(userData.exp);
       await saveMinerData(db, senderID.toString(), userData);
       const tournamentMessage = AuroraBetaStyler.styleOutput({
         headerText: "Mines Tournament",
         headerSymbol: "🏆",
         headerStyle: "bold",
-        bodyText: `Fought ${enemy}, gained ${expGain} EXP!`,
+        bodyText: `Fought ${enemy}, gained ${expGain} EXP! New Rank: ${userData.rank}`,
         bodyStyle: "bold",
         footerText: "Developed by: **Aljur pogoy**",
       });
       await api.sendMessage(tournamentMessage, threadID, messageID);
+      return;
+    }
+
+    if (action === "shop") {
+      const shopItems: { [key: string]: ShopItem } = {
+        wooden_pickaxe: { cost: { silverOre: 50 }, level: 1, effect: "Basic mining tool" },
+        iron_pickaxe: { cost: { silverOre: 150, goldOre: 10 }, level: 2, effect: "Increases ore yield by 2x" },
+        diamond_pickaxe: { cost: { silverOre: 300, goldOre: 30, diamondOre: 5 }, level: 3, effect: "Increases ore yield by 3x" },
+        diamond_ore: { cost: { silverOre: 20 }, amount: 1 },
+        gold_ore: { cost: { silverOre: 10 }, amount: 1 },
+      };
+      const shopMessage = AuroraBetaStyler.styleOutput({
+        headerText: "Miner Shop",
+        headerSymbol: "🛍️",
+        headerStyle: "bold",
+        bodyText: Object.entries(shopItems).map(([key, details]) => {
+          const costStr = Object.entries(details.cost)
+            .map(([resource, amount]) => `${amount} ${resource}`)
+            .join(", ");
+          const displayText = details.effect ? `${details.effect}` : `Get ${details.amount || 0} ${key.replace("_", " ")}`;
+          return `- ${key}: ${displayText} (Cost: ${costStr})`;
+        }).join("\n") + "\nUse /mines buy <key> to purchase.",
+        bodyStyle: "bold",
+        footerText: "Developed by: **Aljur pogoy**",
+      });
+      await api.sendMessage(shopMessage, threadID, messageID);
+      return;
+    }
+
+    if (action === "upgrade") {
+      if (!userData.equipment.pickaxe || userData.equipment.pickaxe === "None") {
+        const noPickaxe = AuroraBetaStyler.styleOutput({
+          headerText: "Mines Upgrade",
+          headerSymbol: "⚠️",
+          headerStyle: "bold",
+          bodyText: "You need a pickaxe to upgrade! Buy one from /mines shop.",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(noPickaxe, threadID, messageID);
+        return;
+      }
+      const currentLevel = userData.equipment.pickaxeLevel;
+      if (currentLevel >= 20) {
+        const maxLevelMessage = AuroraBetaStyler.styleOutput({
+          headerText: "Mines Upgrade",
+          headerSymbol: "⚠️",
+          headerStyle: "bold",
+          bodyText: "Your pickaxe is at max level (20)!",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(maxLevelMessage, threadID, messageID);
+        return;
+      }
+      const upgradeOptions: { [key: string]: { cost: { silverOre: number; goldOre?: number; diamondOre?: number }; ability: string } } = {
+        wooden_pickaxe: { cost: { silverOre: 20 }, ability: "2x the mining and earnings" },
+        iron_pickaxe: { cost: { silverOre: 50, goldOre: 10 }, ability: "3x the mining and earnings" },
+        diamond_pickaxe: { cost: { silverOre: 100, goldOre: 30, diamondOre: 5 }, ability: "5x the mining and earnings" },
+      };
+
+      const currentPickaxeKey = userData.equipment.pickaxe?.toLowerCase().replace(" ", "_");
+      const availableUpgrades = Object.entries(upgradeOptions)
+        .filter(([key, upgrade]) => {
+          const isHigherTier = !currentPickaxeKey || upgradeOptions[currentPickaxeKey]?.cost.silverOre < upgrade.cost.silverOre;
+          const canAfford = userData.materials.silverOre >= upgrade.cost.silverOre &&
+                          (!upgrade.cost.goldOre || userData.materials.goldOre >= upgrade.cost.goldOre) &&
+                          (!upgrade.cost.diamondOre || userData.materials.diamondOre >= upgrade.cost.diamondOre);
+          return isHigherTier && canAfford;
+        })
+        .map(([key, upgrade]) => {
+          const costStr = Object.entries(upgrade.cost)
+            .map(([resource, amount]) => `${amount} ${resource}`)
+            .join(", ");
+          return `- ${key.replace("_", " ")}: Cost: ${costStr}, Ability: ${upgrade.ability}`;
+        });
+
+      if (availableUpgrades.length === 0) {
+        const noUpgrades = AuroraBetaStyler.styleOutput({
+          headerText: "Mines Upgrade",
+          headerSymbol: "⚠️",
+          headerStyle: "bold",
+          bodyText: `No upgrades available. Current Pickaxe: ${userData.equipment.pickaxe} (Level ${currentLevel}). Collect more resources!`,
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(noUpgrades, threadID, messageID);
+        return;
+      }
+
+      const upgradePrompt = AuroraBetaStyler.styleOutput({
+        headerText: "Mines Upgrade",
+        headerSymbol: "🔧",
+        headerStyle: "bold",
+        bodyText: `Available Upgrades:\n${availableUpgrades.join("\n")}\nReply with the pickaxe name (e.g., "wooden pickaxe") to upgrade.`,
+        bodyStyle: "bold",
+        footerText: "Developed by: **Aljur pogoy**",
+      });
+      await api.sendMessage(upgradePrompt, threadID, messageID);
+      global.Kagenou.replies[messageID] = {
+        author: senderID,
+        callback: async (replyEvent: any) => {
+          const replyBody = replyEvent.body?.toLowerCase().trim();
+          const selectedUpgrade = Object.keys(upgradeOptions).find(key => replyBody === key.replace("_", " "));
+          if (!selectedUpgrade) {
+            await api.sendMessage("Invalid pickaxe name. Please choose from the available upgrades.", threadID, replyEvent.messageID);
+            return;
+          }
+
+          const upgrade = upgradeOptions[selectedUpgrade];
+          if (userData.materials.silverOre < upgrade.cost.silverOre ||
+              (upgrade.cost.goldOre && userData.materials.goldOre < upgrade.cost.goldOre) ||
+              (upgrade.cost.diamondOre && userData.materials.diamondOre < upgrade.cost.diamondOre)) {
+            const insufficientMessage = AuroraBetaStyler.styleOutput({
+              headerText: "Mines Upgrade",
+              headerSymbol: "❌",
+              headerStyle: "bold",
+              bodyText: "You don't have enough resources to upgrade to this pickaxe!",
+              bodyStyle: "bold",
+              footerText: "Developed by: **Aljur pogoy**",
+            });
+            await api.sendMessage(insufficientMessage, threadID, replyEvent.messageID);
+            return;
+          }
+          userData.materials.silverOre -= upgrade.cost.silverOre;
+          if (upgrade.cost.goldOre) userData.materials.goldOre -= upgrade.cost.goldOre;
+          if (upgrade.cost.diamondOre) userData.materials.diamondOre -= upgrade.cost.diamondOre;
+          userData.equipment.pickaxeLevel += 1;
+          userData.equipment.pickaxe = selectedUpgrade.replace("_", " ");
+          await saveMinerData(db, senderID.toString(), userData);
+
+          const successMessage = AuroraBetaStyler.styleOutput({
+            headerText: "Mines Upgrade",
+            headerSymbol: "✅",
+            headerStyle: "bold",
+            bodyText: `Upgraded to ${userData.equipment.pickaxe} (Level ${userData.equipment.pickaxeLevel})! Earnings now multiplied by ${userData.equipment.pickaxeLevel}x.`,
+            bodyStyle: "bold",
+            footerText: "Developed by: **Aljur pogoy**",
+          });
+          await api.sendMessage(successMessage, threadID, replyEvent.messageID);
+        }
+      };
+      setTimeout(() => delete global.Kagenou.replies[messageID], 300000); // 5-minute timeout
+      return;
+    }
+
+    if (action === "buy") {
+      const key = args[1]?.toLowerCase();
+      const shopItems: { [key: string]: ShopItem } = {
+        wooden_pickaxe: { cost: { silverOre: 50 }, level: 1, effect: "Basic mining tool" },
+        iron_pickaxe: { cost: { silverOre: 150, goldOre: 10 }, level: 2, effect: "Increases ore yield by 2x" },
+        diamond_pickaxe: { cost: { silverOre: 300, goldOre: 30, diamondOre: 5 }, level: 3, effect: "Increases ore yield by 3x" },
+        diamond_ore: { cost: { silverOre: 20 }, amount: 1 },
+        gold_ore: { cost: { silverOre: 10 }, amount: 1 },
+      };
+      if (!key || !shopItems[key]) {
+        const invalidItem = AuroraBetaStyler.styleOutput({
+          headerText: "Miner Shop",
+          headerSymbol: "⚠️",
+          headerStyle: "bold",
+          bodyText: "Invalid key. Use /mines shop to see available keys.",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(invalidItem, threadID, messageID);
+        return;
+      }
+      const itemData = shopItems[key];
+      const canAfford = userData.materials.diamondOre >= (itemData.cost.diamondOre || 0) &&
+                       userData.materials.goldOre >= (itemData.cost.goldOre || 0) &&
+                       userData.materials.silverOre >= (itemData.cost.silverOre || 0);
+      if (!canAfford) {
+        const insufficientMessage = AuroraBetaStyler.styleOutput({
+          headerText: "Miner Shop",
+          headerSymbol: "❌",
+          headerStyle: "bold",
+          bodyText: "You don't have enough resources to buy this item.",
+          bodyStyle: "bold",
+          footerText: "Developed by: **Aljur pogoy**",
+        });
+        await api.sendMessage(insufficientMessage, threadID, messageID);
+        return;
+      }
+      userData.materials.diamondOre -= itemData.cost.diamondOre || 0;
+      userData.materials.goldOre -= itemData.cost.goldOre || 0;
+      userData.materials.silverOre -= itemData.cost.silverOre || 0;
+      if (itemData.level) {
+        userData.equipment.pickaxe = key.replace("_", " ");
+        userData.equipment.pickaxeLevel = itemData.level;
+      } else if (itemData.amount) {
+        const material = key.replace("_", " ") as keyof typeof userData.materials;
+        userData.materials[material] += itemData.amount;
+      }
+      await saveMinerData(db, senderID.toString(), userData);
+      const buyMessage = AuroraBetaStyler.styleOutput({
+        headerText: "Miner Shop",
+        headerSymbol: "✅",
+        headerStyle: "bold",
+        bodyText: `Purchased ${key.replace("_", " ")}! ${itemData.effect || `You now have more ${key.replace("_", " ")}.`}`,
+        bodyStyle: "bold",
+        footerText: "Developed by: **Aljur pogoy**",
+      });
+      await api.sendMessage(buyMessage, threadID, messageID);
       return;
     }
 
@@ -319,7 +591,7 @@ const minesCommand: ShadowBot.Command = {
       headerText: "Mines Help",
       headerSymbol: "ℹ️",
       headerStyle: "bold",
-      bodyText: "Usage:\n/mines register <name>\n/mines profile\n/mines inventory\n/mines collect\n/mines rest\n/mines tournament\n/mines trade <uid> <diamond> <gold> <silver> | /mines trade accept <uid>",
+      bodyText: "Usage:\n/mines register <name>\n/mines start\n/mines profile\n/mines inventory\n/mines collect\n/mines rest\n/mines tournament\n/mines shop\n/mines buy <key>\n/mines trade <uid> <diamond> <gold> <silver> | /mines trade accept <uid>\n/mines upgrade",
       bodyStyle: "bold",
       footerText: "Developed by: **Aljur pogoy**",
     });
