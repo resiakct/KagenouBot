@@ -1,12 +1,9 @@
-/* New update with reply function*/
-
-import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
+import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
 
 namespace ShadowBot {
   export interface Command {
     config: {
       name: string;
-      author: string;
       description: string;
       usage: string;
       category?: string;
@@ -32,12 +29,18 @@ interface ShopItem {
   amount?: number;
 }
 
+interface UpgradeOption {
+  cost: { silverOre: number; goldOre?: number; diamondOre?: number };
+  ability: string;
+  level: number;
+}
+
 function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function determineRank(exp: number): string {
-  if (exp >= 100000) return "S";
+  if (exp >= 10000) return "S";
   if (exp >= 5000) return "A";
   if (exp >= 2500) return "B";
   if (exp >= 1000) return "C";
@@ -48,10 +51,10 @@ function determineRank(exp: number): string {
 function getCollectionMultiplier(pickaxeLevel: number): number {
   if (pickaxeLevel === 1) return 2;       // 1x → 2x
   if (pickaxeLevel === 2) return 4;       // 2x → 4x
-  if (pickaxeLevel === 5) return 6;       // 5x → 6x
+  if (pickaxeLevel === 3) return 6;       // 3x → 6x (adjusted for diamond_pickaxe level 3)
   if (pickaxeLevel >= 7 && pickaxeLevel <= 15) return 9; // 7-15x → 9x
   if (pickaxeLevel >= 20) return 20;      // 20x (max) → 20x
-  return pickaxeLevel;                    // Default 
+  return pickaxeLevel;                    // Default to level 
 }
 
 async function saveMinerData(db: any, senderID: string, data: MinerData) {
@@ -86,7 +89,6 @@ async function removeTradeRequest(db: any, from: string, to: string) {
 const minesCommand: ShadowBot.Command = {
   config: {
     name: "mines",
-    author: "Aljur pogoy",
     description: "Manage your mining activities, shop, and ranks.",
     usage: "/mines register <name> | /mines start | /mines profile | /mines inventory | /mines collect | /mines rest | /mines tournament | /mines shop | /mines buy <key> | /mines trade <uid> <diamond> <gold> <silver> | /mines trade accept <uid> | /mines upgrade",
     category: "Games 🎮",
@@ -513,10 +515,10 @@ const minesCommand: ShadowBot.Command = {
         await api.sendMessage(maxLevelMessage, threadID, messageID);
         return;
       }
-      const upgradeOptions: { [key: string]: { cost: { silverOre: number; goldOre?: number; diamondOre?: number }; ability: string } } = {
-        wooden_pickaxe: { cost: { silverOre: 20 }, ability: "2x the mining and earnings" },
-        iron_pickaxe: { cost: { silverOre: 50, goldOre: 10 }, ability: "3x the mining and earnings" },
-        diamond_pickaxe: { cost: { silverOre: 100, goldOre: 30, diamondOre: 5 }, ability: "5x the mining and earnings" },
+      const upgradeOptions: { [key: string]: UpgradeOption } = {
+        wooden_pickaxe: { cost: { silverOre: 20 }, ability: "2x the mining and earnings", level: 1 },
+        iron_pickaxe: { cost: { silverOre: 50, goldOre: 10 }, ability: "3x the mining and earnings", level: 2 },
+        diamond_pickaxe: { cost: { silverOre: 100, goldOre: 30, diamondOre: 5 }, ability: "5x the mining and earnings", level: 3 },
       };
 
       const currentPickaxeKey = userData.equipment.pickaxe?.toLowerCase().replace(" ", "_");
@@ -616,7 +618,7 @@ const minesCommand: ShadowBot.Command = {
         userData.materials.silverOre -= upgrade.cost.silverOre;
         if (upgrade.cost.goldOre) userData.materials.goldOre -= upgrade.cost.goldOre;
         if (upgrade.cost.diamondOre) userData.materials.diamondOre -= upgrade.cost.diamondOre;
-        userData.equipment.pickaxeLevel = upgradeOptions[selectedUpgrade].level || userData.equipment.pickaxeLevel + 1;
+        userData.equipment.pickaxeLevel = upgrade.level; // Set to the new level from upgradeOptions
         userData.equipment.pickaxe = selectedUpgrade.replace("_", " ");
         await saveMinerData(db, senderID.toString(), userData);
 
