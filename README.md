@@ -154,7 +154,7 @@ node index.js
 
 ### Modular Command Structure
 - Simplified command management with clearly organized command files and directories.
-- Support for multiple systems and command categories, including Jinwoo-System, Alpha-System, and GoatBot-System.
+- ~~Support for multiple systems and command categories, including Jinwoo-System, Alpha-System, and GoatBot-System.~~
 
 ### Improved Bot Performance
 - Faster command execution and reduced latency.
@@ -193,8 +193,8 @@ node index.js
 ```
 MIT License
 
-Copyright (c) January 20, 2025
-Aljur Pogoy / GeoArchonsTeam
+Copyright (c) January 20, 2025 
+Aljur Pogoy / GeoArchonsTeam / Cassidy-Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software to use, copy, modify, distribute, and publish as needed.
@@ -205,4 +205,4 @@ of this software to use, copy, modify, distribute, and publish as needed.
 ## Credits
 
 - **Shadow Garden Lore** - Inspired by *The Eminence in Shadow*
-- **Bot Devs** - Aljur Pogoy and GeoArchonsTeam
+- **Bot Devs** - Aljur Pogoy and his Girlfriend 
