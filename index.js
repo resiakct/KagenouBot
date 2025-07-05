@@ -5,7 +5,7 @@ const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
 const login = require("fbvibex");
-const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
+const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora");
 loadAuroraCommands();
 const commands = new Map();
 const nonPrefixCommands = new Map();
