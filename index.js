@@ -1,20 +1,11 @@
-/**
- * @author Aljur pogoy
- * Thank you for using our Botfile ✨
- * This botfile was developed since 2024, December.
- */
-
-
+require("tsconfig-paths/register");
 require("ts-node").register();
 require("./core/global");
 const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
 const login = require("fbvibex");
-/*
-const apiHandler = require("./utils/apiHandler");
-*/
-const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora");
+const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
 loadAuroraCommands();
 const commands = new Map();
 const nonPrefixCommands = new Map();
@@ -52,13 +43,26 @@ const loadBannedUsers = () => {
     bannedUsers = {};
   }
 };
+
 function getUserRole(uid) {
-  uid = String(uid);
-  if (config.developers.includes(uid)) return 3;
-  if (config.moderators.includes(uid)) return 2;
-  if (config.admins.includes(uid)) return 1;
+  uid = String(uid); /*
+  * This is optional only if You want to debug the roles checking
+  console.log(`[ROLE_DEBUG] Checking role for UID: ${uid}`);
+  console.log(`[ROLE_DEBUG] Config Contents - Admins: ${JSON.stringify(config.admins)}, Moderators: ${JSON.stringify(config.moderators)}, Developers: ${JSON.stringify(config.developers)}`)
+  ;*/
+  if (!config || !config.developers || !config.moderators || !config.admins) {
+    console.error(`[ROLE_DEBUG] Config is missing or incomplete! Config: ${JSON.stringify(config)}`);
+    return 0;
+  }
+  const developers = config.developers.map(String);
+  const moderators = config.moderators.map(String);
+  const admins = config.admins.map(String);
+  if (developers.includes(uid)) return 3;
+  if (moderators.includes(uid)) return 2;
+  if (admins.includes(uid)) return 1;
   return 0;
 }
+
 async function handleReply(api, event) {
   const replyData = global.Kagenou.replies[event.messageReply?.messageID];
   if (!replyData) return;
@@ -66,13 +70,14 @@ async function handleReply(api, event) {
     return api.sendMessage("Only the original sender can reply to this message.", event.threadID, event.messageID);
   }
   try {
-    await replyData.callback({ ...event, event, api, attachments: event.messageReply?.attachments || [], data: replyData });
+    await replyData.callback({ ...event, event, api, attachments: event.attachments || [], data: replyData });
     console.log(`[REPLY] Processed reply for messageID: ${event.messageReply?.messageID}, command: ${replyData.callback.name || "unknown"}`);
   } catch (err) {
     console.error(`[REPLY ERROR] Failed to process reply for messageID: ${event.messageReply?.messageID}:`, err);
     api.sendMessage(`An error occurred while processing your reply: ${err.message}`, event.threadID, event.messageID);
   }
 }
+
 const loadCommands = () => {
   const retroGradient = require("gradient-string").retro;
   const commandFiles = fs.readdirSync(commandsDir).filter(file => file.endsWith(".js") || file.endsWith(".ts"));
@@ -101,8 +106,10 @@ const loadCommands = () => {
   console.log(retroGradient(`Event Commands: ${eventCommands.length}`));
   console.log(retroGradient("[ INFO ] Setup Complete!"));
 };
+
 loadCommands();
 let appState = {};
+
 try {
   appState = JSON.parse(fs.readFileSync("./appstate.dev.json", "utf8"));
 } catch (error) {
@@ -173,13 +180,13 @@ const checkCooldown = (userID, commandName, cooldown) => {
 };
 const sendMessage = async (api, messageData) => {
   try {
-    const { threadID, message, replyHandler, messageID, senderID } = messageData;
+    const { threadID, message, replyHandler, messageID, senderID, attachment } = messageData;
     if (!threadID || (typeof threadID !== "number" && typeof threadID !== "string" && !Array.isArray(threadID))) {
       throw new Error("ThreadID must be a number, string, or array and cannot be undefined.");
     }
     if (!message || message.trim() === "") return;
     return new Promise((resolve, reject) => {
-      api.sendMessage(message, threadID, (err, info) => {
+      api.sendMessage({ body: message, attachment }, threadID, (err, info) => {
         if (err) {
           console.error("Error sending message:", err);
           return reject(err);
@@ -197,47 +204,52 @@ const sendMessage = async (api, messageData) => {
   }
 };
 const handleMessage = async (api, event) => {
-  const { threadID, senderID, body, messageReply, messageID } = event;
-  if (!body) return;
-  const message = body.trim();
+  const { threadID, senderID, body, messageReply, messageID, attachments } = event;
+  if (!body && !attachments) return;
+  const message = body ? body.trim() : "";
   const words = message.split(/ +/);
   let prefixes = config.Prefix;
   loadBannedUsers();
-  if (bannedUsers[senderID]) {
-    return api.sendMessage(`You are banned from using bot commands.\nReason: ${bannedUsers[senderID].reason}`, threadID);
-  }
   if (messageReply && global.Kagenou.replies && global.Kagenou.replies[messageReply.messageID]) {
     return handleReply(api, event);
   }
-  let commandName = words[0].toLowerCase();
-  let args = words.slice(1);
+  let commandName = words[0]?.toLowerCase() || "";
+  let args = words.slice(1) || [];
   let command = null;
   let prefix = config.Prefix[0];
+  let isCommandAttempt = false;
   for (const prefix of prefixes) {
     if (message.startsWith(prefix)) {
       commandName = message.slice(prefix.length).split(/ +/)[0].toLowerCase();
       args = message.slice(prefix.length).split(/ +/).slice(1);
       command = commands.get(commandName);
+      isCommandAttempt = true;
       if (command && command.nonPrefix && message === commandName) command = null;
       break;
     }
   }
   if (!command) {
     command = nonPrefixCommands.get(commandName);
+    if (command) isCommandAttempt = true;
+  }
+  if (isCommandAttempt && bannedUsers[senderID]) {
+    console.log(`[BAN_DEBUG] Banned user ${senderID} attempted command: ${commandName}, Reason: ${bannedUsers[senderID].reason}`);
+    return api.sendMessage(`You are banned from using bot commands.\nReason: ${bannedUsers[senderID].reason}`, threadID, messageID);
   }
   if (command) {
     const userRole = getUserRole(senderID);
-    const commandRole = command.role || 0;
+    const commandRole = command.config?.role ?? command.role ?? 0;
     if (userRole < commandRole) {
+      console.log(`[COMMAND_DEBUG] Permission denied for UserID: ${senderID}, Command: ${commandName}`);
       return api.sendMessage(
-        ` You do not have permission to use this command. Required role: ${commandRole} (0=Everyone, 1=Admin, 2=Moderator, 3=Developer), your role: ${userRole}.`,
+        `🛡️ 𝙾𝚗𝚕𝚢 𝙼𝚘𝚍𝚎𝚛𝚊𝚝𝚘𝚛𝚜  𝚘𝚛  𝚑𝚒𝚐𝚑𝚎𝚛 𝚌𝚊𝚗 𝚞𝚜𝚎 𝚝𝚑𝚒𝚜 𝚌𝚘𝚖𝚖𝚊𝚗𝚍.`,
         threadID,
         messageID
       );
     }
     const disabledCommandsList = global.disabledCommands.get("disabled") || [];
     if (disabledCommandsList.includes(commandName)) {
-      return api.sendMessage(`${commandName.charAt(0).toUpperCase() + commandName.slice(1)} Command has been disabled.`, threadID, messageID);
+      return api.sendMessage(`${commandName.charAt(0).toUpperCase() + commandName.slice(1)} Command is under maintenance please wait..`, threadID, messageID);
     }
     const cooldown = command.cooldown || 0;
     const cooldownMessage = checkCooldown(senderID, commandName, cooldown || 3);
@@ -247,16 +259,7 @@ const handleMessage = async (api, event) => {
       if (command.execute) {
         await command.execute(api, event, args, commands, prefix, config.admins, appState, sendMessage, usersData, globalData);
       } else if (command.run) {
-        await command.run({ api, event, args,  usersData, globalData, admins: config.admins, prefix: prefix, db, commands });
-    /*  } else if (command.config && command.config.onStart) {
-        await command.config.onStart({
-          api,
-          event,
-          args,
-          message: {
-            reply: (text, callback) => api.sendMessage(text, event.threadID, callback, event.messageID)
-          } 
-          }); */
+        await command.run({ api, event, args, attachments, usersData, globalData, admins: config.admins, prefix: prefix, db, commands });
       }
       if (db && usersData.has(senderID)) {
         const usersCollection = db.db("users");
@@ -266,16 +269,16 @@ const handleMessage = async (api, event) => {
           { $set: { userId: senderID, data: userData } },
           { upsert: true }
         );
-        console.log(`[DB] Synced user ${senderID} data to MongoDB.`);
       }
     } catch (error) {
       console.error(`Failed to execute command '${commandName}':`, error);
       sendMessage(api, { threadID, message: `Error executing command '${commandName}': ${error.message}` });
     }
-  } else if (message.startsWith(config.Prefix[0])) {
+  } else if (isCommandAttempt) {
     sendMessage(api, { threadID, message: `Invalid Command!, Use ${config.Prefix[0]}help for available commands.`, messageID });
   }
 };
+
 async function handleReaction(api, event) {
   const { threadID, reaction, messageID, senderID } = event;
   for (const command of commands.values()) {
@@ -314,7 +317,9 @@ const handleEvent = async (api, event) => {
     }
   }
 };
+
 const { preventBannedResponse } = require("./commands/thread");
+
 const startListeningForMessages = (api) => {
   return api.listenMqtt(async (err, event) => {
     if (err) {
@@ -332,14 +337,29 @@ const startListeningForMessages = (api) => {
       }
       if (proceed) {
         if (event.type === "message_reply" && event.messageReply) {
-          if (global.Kagenou.replies[event.messageReply.messageID]) {
+          const replyMessageID = event.messageReply.messageID;
+          if (global.Kagenou.replies[replyMessageID]) {
             await handleReply(api, event);
             return;
           }
-          await handleEvent(api, event);
-          await handleMessage(api, event);
+          if (global.Kagenou.replyListeners && global.Kagenou.replyListeners.has(replyMessageID)) {
+            const listener = global.Kagenou.replyListeners.get(replyMessageID);
+            if (typeof listener.callback === "function") {
+              await listener.callback({
+                api,
+                event,
+                attachments: event.attachments || [],
+                data: { senderID: event.senderID, threadID: event.threadID, messageID: event.messageID },
+              });
+              global.Kagenou.replyListeners.delete(replyMessageID);
+            } else {
+              console.error("Callback is not a function for messageID:", replyMessageID);
+            }
+            return;
+          }
         }
-        if (["message"].includes(event.type)) {
+        if (["message", "message_reply"].includes(event.type)) {
+          event.attachments = event.attachments || [];
           await handleEvent(api, event);
           await handleMessage(api, event);
           handleAuroraCommand(api, event);
@@ -417,6 +437,7 @@ const startListeningForMessages = (api) => {
     }
   });
 };
+
 const startListeningWithAutoRestart = (api) => {
   let stopListener = null;
   const startListener = () => {
@@ -443,8 +464,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 /*
-app.use(express.static(path.join(__dirname, 'dashboard', 'public'))); */
-
+*@Optional only
+app.use(express.static(path.join(__dirname, 'dashboard', 'public')));
+*/
 const startBot = async () => {
   login({ appState }, (err, api) => {
     if (err) {
@@ -458,16 +480,18 @@ const startBot = async () => {
       updatePresence: true,
       selfListen: false,
       bypassRegion: "pnb",
-      userAgent: "ZmFjZWJvb2tleHRlcm5hbGhpdC8xLjEgKCdodHRwOi8vd3d3LmZhY2Vib29rLmNvbS9leHRlcm5hbGhpdF91YXRleHQucGhwKQ==",
+      userAgent: "ZmFjZWJvb2tleHRlcm5hbGhpdC8xLjEgKCtodHRwOi8vd3d3LmZhY2Vib29rLmNvbS9leHRlcm5hbGhpdF91YXRleHQucGhwKQ==",
       online: true,
       autoMarkDelivery: false,
       autoMarkRead: false,
     });
+
     global.api = api;
     startListeningWithAutoRestart(api);
+
     app.get('/', (req, res) => {
       const botUID = api.getCurrentUserID();
-      const botName = config.botName || 'KagenouBotV3';
+      const botName = config.botName || 'KagenouBot';
       res.send(`
         <!DOCTYPE html>
         <html lang="en">
@@ -529,7 +553,7 @@ const startBot = async () => {
                 }
                 .bot-card p {
                     font-size: 1.1em;
-                    margin: 10px 0;
+                    margin: 10px0;
                     color: #b0b0b0;
                 }
                 .bot-card img {
@@ -590,12 +614,12 @@ const startBot = async () => {
         </html>
       `);
     });
+
     const dashboardPort = 3000;
     app.listen(dashboardPort, () => {
       console.log(`[DASHBOARD] Dashboard running on http://localhost:${dashboardPort}`);
     });
   });
 };
-startBot();
 
-/* @Developed by Aljur pogoy 🤓☝️ */
+startBot();
