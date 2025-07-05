@@ -18,6 +18,10 @@ Welcome to **Official version of KagenouBot ver 4.0.0**, an elite Facebook Messe
 
 ---
 
+## Note: All commands/codes are created by me (Aljur pogoy), except for a few sourced from Botpack."
+
+---
+
 
 ## Introduction: The Seven Shadows
 
