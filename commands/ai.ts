@@ -1,6 +1,5 @@
 import axios from "axios";
 
-/* defined shadowBot ts :) */
 
 namespace ShadowBot {
   export interface Command {
@@ -18,7 +17,7 @@ const aiCommand: ShadowBot.Command = {
   config: {
     name: "ai",
     description: "Interact with the Gemini API for conversational responses.",
-    usage: "ai <query>",
+    usage: "/ai <query>",
     nonPrefix: true,
   },
   run: async ({ api, event, args }: { api: any; event: any; args: string[] }) => {
