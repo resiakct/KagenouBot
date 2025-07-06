@@ -20,7 +20,7 @@ const helpCommand: ShadowBot.Command = {
   config: {
     name: "help",
     description: "Displays all available commands or detailed info about a specific command",
-    usage: "/help or /help <command> or /help <page> or /help all",
+    usage: "help or help <command> or help <page> or help all",
     aliases: [],
     category: "Utility"
   },
@@ -163,7 +163,7 @@ ${page === 1 && eventList.length > 0 ? eventList.join("\n") : ""}
 ${LINE}
 📖 𝖯𝖺𝗀𝖾 ${page}/${totalPages}
 ${totalPages > 1 ? "> 🔄 𝖭𝖾𝗑𝗍 𝗉𝖺𝗀𝖾: /𝗁𝖾𝗅𝗉 " + (page + 1) + "\n" : ""}
- ℹ️ 𝖣𝖾𝗍𝖺𝗂𝗅𝗌: /𝗁𝖾𝗅𝗉 <𝖼𝗈𝗆𝗆𝖺𝗇𝖽>
+ ℹ️ 𝖣𝖾𝗍𝖺𝗂𝗅𝗌: ${config.Prefix}𝗁𝖾𝗅𝗉 <𝖼𝗈𝗆𝗆𝖺𝗇𝖽>
  🌟 𝖠𝗅𝗅 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌: /𝗁𝖾𝗅𝗉 𝖺𝗅𝗅
  🌟 𝖤𝗇𝗃𝗈𝗒 𝖢𝗂𝖽 𝖪𝖺𝗀𝖾𝗇𝗈𝗎 𝖡𝗈𝗍!
     `.trim();
