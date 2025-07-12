@@ -1,6 +1,6 @@
 const { exec } = require("child_process");
 const { promisify } = require("util");
-import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
+import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 module.exports = {
   name: "python",
   description: "Compile and run Python code locally. Usage: #python <code> or reply with code",
