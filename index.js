@@ -1,3 +1,10 @@
+/* 
+* @Author Aljur Pogoy 
+* Bot Developed exact December 24 11:58 PM 2024
+* @Moderators Aljur pogoy, Kenneth Panio, Liane Cagara
+* Thanks to them
+*/
+
 require("tsconfig-paths/register");
 require("ts-node").register();
 require("./core/global");
@@ -5,37 +12,46 @@ const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
 const login = require("fbvibex");
-const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora");
+const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
 loadAuroraCommands();
-const commands = new Map();
-const nonPrefixCommands = new Map();
-const eventCommands = [];
-const usersData = new Map();
-const globalData = new Map();
+
+global.threadState = { active: new Map(), approved: new Map(), pending: new Map() };
+global.client = { reactionListener: {}, globalData: new Map() };
+global.Kagenou = { autodlEnabled: false, replies: {} };
+global.db = null;
+global.config = { admins: [], moderators: [], developers: [], Prefix: ["/"], botName: "Shadow Garden Bot", mongoUri: null };
+global.globalData = new Map();
+global.usersData = new Map();
+global.disabledCommands = new Map();
+global.userCooldowns = new Map();
+global.commands = new Map();
+global.nonPrefixCommands = new Map();
+global.eventCommands = [];
+global.appState = {};
+global.reactionData = new Map();
+
+process.on("unhandledRejection", console.error.bind(console));
+process.on("exit", () => fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData])));
+global.userCooldowns = new Map();
+const reloadCommands = () => {
+  global.commands.clear();
+  global.nonPrefixCommands.clear();
+  global.eventCommands.length = 0;
+  loadCommands();
+};
+global.reloadCommands = reloadCommands;
+
 const commandsDir = path.join(__dirname, "commands");
 const bannedUsersFile = path.join(__dirname, "database", "bannedUsers.json");
 const configFile = path.join(__dirname, "config.json");
 const globalDataFile = path.join(__dirname, "database", "globalData.json");
 let bannedUsers = {};
-let config = { admins: [], moderators: [], developers: [], Prefix: ["/"], botName: "Shadow Garden Bot", mongoUri: null };
-global.disabledCommands = new Map();
-process.on("unhandledRejection", console.error.bind(console));
-process.on("exit", () => fs.writeFileSync(globalDataFile, JSON.stringify([...globalData])));
-global.userCooldowns = new Map();
-const reloadCommands = () => {
-  commands.clear();
-  nonPrefixCommands.clear();
-  eventCommands.length = 0;
-  loadCommands();
-};
-global.reloadCommands = reloadCommands;
-global.threadState = { active: new Map(), approved: new Map(), pending: new Map() };
-global.client = { reactionListener: {}, globalData: new Map() };
-global.Kagenou = { autodlEnabled: false, replies: {} };
+
 if (fs.existsSync(globalDataFile)) {
   const data = JSON.parse(fs.readFileSync(globalDataFile));
-  for (const [key, value] of Object.entries(data)) globalData.set(key, value);
+  for (const [key, value] of Object.entries(data)) global.globalData.set(key, value);
 }
+
 const loadBannedUsers = () => {
   try {
     bannedUsers = JSON.parse(fs.readFileSync(bannedUsersFile, "utf8"));
@@ -45,18 +61,13 @@ const loadBannedUsers = () => {
 };
 
 function getUserRole(uid) {
-  uid = String(uid); /*
-  * This is optional only if You want to debug the roles checking
-  console.log(`[ROLE_DEBUG] Checking role for UID: ${uid}`);
-  console.log(`[ROLE_DEBUG] Config Contents - Admins: ${JSON.stringify(config.admins)}, Moderators: ${JSON.stringify(config.moderators)}, Developers: ${JSON.stringify(config.developers)}`)
-  ;*/
-  if (!config || !config.developers || !config.moderators || !config.admins) {
-    console.error(`[ROLE_DEBUG] Config is missing or incomplete! Config: ${JSON.stringify(config)}`);
+  uid = String(uid);
+  if (!global.config || !global.config.developers || !global.config.moderators || !global.config.admins) {
     return 0;
   }
-  const developers = config.developers.map(String);
-  const moderators = config.moderators.map(String);
-  const admins = config.admins.map(String);
+  const developers = global.config.developers.map(String);
+  const moderators = global.config.moderators.map(String);
+  const admins = global.config.admins.map(String);
   if (developers.includes(uid)) return 3;
   if (moderators.includes(uid)) return 2;
   if (admins.includes(uid)) return 1;
@@ -71,9 +82,7 @@ async function handleReply(api, event) {
   }
   try {
     await replyData.callback({ ...event, event, api, attachments: event.attachments || [], data: replyData });
-    console.log(`[REPLY] Processed reply for messageID: ${event.messageReply?.messageID}, command: ${replyData.callback.name || "unknown"}`);
   } catch (err) {
-    console.error(`[REPLY ERROR] Failed to process reply for messageID: ${event.messageReply?.messageID}:`, err);
     api.sendMessage(`An error occurred while processing your reply: ${err.message}`, event.threadID, event.messageID);
   }
 }
@@ -88,23 +97,18 @@ const loadCommands = () => {
       const commandModule = require(commandPath);
       const command = commandModule.default || commandModule;
       if (command.config && command.config.name && command.run) {
-        commands.set(command.config.name.toLowerCase(), command);
-        if (command.config.aliases) command.config.aliases.forEach(alias => commands.set(alias.toLowerCase(), command));
-        if (command.config.nonPrefix) nonPrefixCommands.set(command.config.name.toLowerCase(), command);
+        global.commands.set(command.config.name.toLowerCase(), command);
+        if (command.config.aliases) command.config.aliases.forEach(alias => global.commands.set(alias.toLowerCase(), command));
+        if (command.config.nonPrefix) global.nonPrefixCommands.set(command.config.name.toLowerCase(), command);
       } else if (command.name) {
-        commands.set(command.name.toLowerCase(), command);
-        if (command.aliases) command.aliases.forEach(alias => commands.set(alias.toLowerCase(), command));
-        if (command.nonPrefix) nonPrefixCommands.set(command.name.toLowerCase(), command);
+        global.commands.set(command.name.toLowerCase(), command);
+        if (command.aliases) command.aliases.forEach(alias => global.commands.set(alias.toLowerCase(), command));
+        if (command.nonPrefix) global.nonPrefixCommands.set(command.name.toLowerCase(), command);
       }
-      if (command.handleEvent) eventCommands.push(command);
+      if (command.handleEvent) global.eventCommands.push(command);
     } catch (error) {
-      console.error(`Error loading command '${file}':`, error);
     }
   }
-  console.log(retroGradient(`[ MAIN SYSTEM COMMANDS ]: ${commands.size}`));
-  console.log(retroGradient(`Non-Prefix Commands: ${nonPrefixCommands.size}`));
-  console.log(retroGradient(`Event Commands: ${eventCommands.length}`));
-  console.log(retroGradient("[ INFO ] Setup Complete!"));
 };
 
 loadCommands();
@@ -113,12 +117,10 @@ let appState = {};
 try {
   appState = JSON.parse(fs.readFileSync("./appstate.dev.json", "utf8"));
 } catch (error) {
-  console.error("Error loading appstate.json:", error);
 }
 try {
   const configData = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  console.log("[CONFIG] Loaded config.json:", configData);
-  config = {
+  global.config = {
     admins: configData.admins || [],
     moderators: configData.moderators || [],
     developers: configData.developers || [],
@@ -128,12 +130,10 @@ try {
     ...configData,
   };
 } catch (error) {
-  console.error("[CONFIG] Error loading config.json:", error);
-  config = { admins: [], moderators: [], developers: [], Prefix: ["/"], botName: "Shadow Garden Bot", mongoUri: null };
+  global.config = { admins: [], moderators: [], developers: [], Prefix: ["/"], botName: "Shadow Garden Bot", mongoUri: null };
 }
 let db = null;
-const uri = config.mongoUri || null;
-console.log("[DB] MongoDB URI:", uri);
+const uri = global.config.mongoUri || null;
 if (uri) {
   const client = new MongoClient(uri, { useUnifiedTopology: true });
   const cidkagenou = {
@@ -143,24 +143,19 @@ if (uri) {
   };
   async function connectDB() {
     try {
-      console.log("[DB] Attempting to connect to MongoDB...");
       await client.connect();
-      console.log("[DB] Connected to MongoDB successfully with URI:", uri);
       db = cidkagenou;
       global.db = db;
       const usersCollection = db.db("users");
       const allUsers = await usersCollection.find({}).toArray();
-      allUsers.forEach(user => usersData.set(user.userId, user.data));
-      console.log("[DB] Synced usersData with MongoDB users.");
+      allUsers.forEach(user => global.usersData.set(user.userId, user.data));
     } catch (err) {
-      console.error("[DB] MongoDB connection error, falling back to JSON:", err);
       db = null;
       global.db = null;
     }
   }
   connectDB();
 } else {
-  console.log("[DB] No mongoUri in config.json, falling back to JSON storage. Config:", config);
   db = null;
   global.db = null;
 }
@@ -188,7 +183,6 @@ const sendMessage = async (api, messageData) => {
     return new Promise((resolve, reject) => {
       api.sendMessage({ body: message, attachment }, threadID, (err, info) => {
         if (err) {
-          console.error("Error sending message:", err);
           return reject(err);
         }
         if (replyHandler && typeof replyHandler === "function") {
@@ -199,7 +193,6 @@ const sendMessage = async (api, messageData) => {
       }, messageID || null);
     });
   } catch (error) {
-    console.error("Error in sendMessage:", error);
     throw error;
   }
 };
@@ -208,7 +201,7 @@ const handleMessage = async (api, event) => {
   if (!body && !attachments) return;
   const message = body ? body.trim() : "";
   const words = message.split(/ +/);
-  let prefixes = config.Prefix;
+  let prefixes = global.config.Prefix;
   loadBannedUsers();
   if (messageReply && global.Kagenou.replies && global.Kagenou.replies[messageReply.messageID]) {
     return handleReply(api, event);
@@ -216,31 +209,29 @@ const handleMessage = async (api, event) => {
   let commandName = words[0]?.toLowerCase() || "";
   let args = words.slice(1) || [];
   let command = null;
-  let prefix = config.Prefix[0];
+  let prefix = global.config.Prefix[0];
   let isCommandAttempt = false;
   for (const prefix of prefixes) {
     if (message.startsWith(prefix)) {
       commandName = message.slice(prefix.length).split(/ +/)[0].toLowerCase();
       args = message.slice(prefix.length).split(/ +/).slice(1);
-      command = commands.get(commandName);
+      command = global.commands.get(commandName);
       isCommandAttempt = true;
-      if (command && command.nonPrefix && message === commandName) command = null;
+      if (command && command.config?.nonPrefix && message === commandName) command = null;
       break;
     }
   }
   if (!command) {
-    command = nonPrefixCommands.get(commandName);
+    command = global.nonPrefixCommands.get(commandName);
     if (command) isCommandAttempt = true;
   }
   if (isCommandAttempt && bannedUsers[senderID]) {
-    console.log(`[BAN_DEBUG] Banned user ${senderID} attempted command: ${commandName}, Reason: ${bannedUsers[senderID].reason}`);
     return api.sendMessage(`You are banned from using bot commands.\nReason: ${bannedUsers[senderID].reason}`, threadID, messageID);
   }
   if (command) {
     const userRole = getUserRole(senderID);
     const commandRole = command.config?.role ?? command.role ?? 0;
     if (userRole < commandRole) {
-      console.log(`[COMMAND_DEBUG] Permission denied for UserID: ${senderID}, Command: ${commandName}`);
       return api.sendMessage(
         `🛡️ 𝙾𝚗𝚕𝚢 𝙼𝚘𝚍𝚎𝚛𝚊𝚝𝚘𝚛𝚜  𝚘𝚛  𝚑𝚒𝚐𝚑𝚎𝚛 𝚌𝚊𝚗 𝚞𝚜𝚎 𝚝𝚑𝚒𝚜 𝚌𝚘𝚖𝚖𝚊𝚗𝚍.`,
         threadID,
@@ -251,19 +242,19 @@ const handleMessage = async (api, event) => {
     if (disabledCommandsList.includes(commandName)) {
       return api.sendMessage(`${commandName.charAt(0).toUpperCase() + commandName.slice(1)} Command is under maintenance please wait..`, threadID, messageID);
     }
-    const cooldown = command.cooldown || 0;
+    const cooldown = command.config?.cooldown ?? command.cooldown ?? 0;
     const cooldownMessage = checkCooldown(senderID, commandName, cooldown || 3);
     if (cooldownMessage) return sendMessage(api, { threadID, message: cooldownMessage, messageID });
     setCooldown(senderID, commandName, cooldown || 3);
     try {
       if (command.execute) {
-        await command.execute(api, event, args, commands, prefix, config.admins, appState, sendMessage, usersData, globalData);
+        await command.execute(api, event, args, global.commands, prefix, global.config.admins, appState, sendMessage, usersData, global.globalData);
       } else if (command.run) {
-        await command.run({ api, event, args, attachments, usersData, globalData, admins: config.admins, prefix: prefix, db, commands });
+        await command.run({ api, event, args, attachments, usersData: global.usersData, globalData: global.globalData, admins: global.config.admins, prefix: prefix, db: global.db, commands: global.commands });
       }
-      if (db && usersData.has(senderID)) {
-        const usersCollection = db.db("users");
-        const userData = usersData.get(senderID) || {};
+      if (global.db && global.usersData.has(senderID)) {
+        const usersCollection = global.db.db("users");
+        const userData = global.usersData.get(senderID) || {};
         await usersCollection.updateOne(
           { userId: senderID },
           { $set: { userId: senderID, data: userData } },
@@ -271,49 +262,28 @@ const handleMessage = async (api, event) => {
         );
       }
     } catch (error) {
-      console.error(`Failed to execute command '${commandName}':`, error);
       sendMessage(api, { threadID, message: `Error executing command '${commandName}': ${error.message}` });
     }
   } else if (isCommandAttempt) {
-    sendMessage(api, { threadID, message: `Invalid Command!, Use ${config.Prefix[0]}help for available commands.`, messageID });
+    sendMessage(api, { threadID, message: `Invalid Command!, Use ${global.config.Prefix[0]}help for available commands.`, messageID });
   }
 };
 
 async function handleReaction(api, event) {
-  const { threadID, reaction, messageID, senderID } = event;
-  for (const command of commands.values()) {
-    if (command.handleReaction) {
-      try {
-        await command.handleReaction({ api, event, reaction, threadID, messageID, senderID });
-        console.log(`[REACTION] Processed reaction for command: ${command.config?.name || "unknown"}`);
-      } catch (error) {
-        console.error(`[REACTION] error:`, error);
-        api.sendMessage(`Error processing reaction: ${error.message}`, threadID, messageID);
-      }
-    } else if (command.config && command.config.onReaction) {
-      const reactionData = global.Kagenou.replies[event.messageID] || {};
-      if (reactionData.author === event.senderID) {
-        try {
-          await command.config.onReaction({
-            message: { reply: (text) => api.sendMessage(text, event.threadID) },
-            event,
-            Reaction: reactionData,
-          });
-          delete global.Kagenou.replies[event.messageID];
-        } catch (error) {
-          console.error(`[REACTION ERROR] Failed to process reaction for '${command.config.name}':`, error);
-          api.sendMessage(`Error processing reaction: ${error.message}`, event.threadID, messageID);
-        }
-      }
-    }
+  const { messageID, reaction, threadID, senderID } = event;
+  const reactionInfo = global.reactionData.get(messageID);
+  if (!reactionInfo) {
+    return;
   }
+  await reactionInfo.callback({ api, event, reaction, threadID, messageID, senderID });
+  global.reactionData.delete(messageID);
 }
+
 const handleEvent = async (api, event) => {
-  for (const command of eventCommands) {
+  for (const command of global.eventCommands) {
     try {
-      if (command.handleEvent) await command.handleEvent({ api, event });
+      if (command.handleEvent) await command.handleEvent({ api, event, db: global.db });
     } catch (error) {
-      console.error(`Error in event command '${command.config?.name || command.name}':`, error);
     }
   }
 };
@@ -323,7 +293,6 @@ const { preventBannedResponse } = require("./commands/thread");
 const startListeningForMessages = (api) => {
   return api.listenMqtt(async (err, event) => {
     if (err) {
-      console.error("Error listening for messages:", err);
       return;
     }
     try {
@@ -335,7 +304,8 @@ const startListeningForMessages = (api) => {
           proceed = false;
         }
       }
-      if (proceed) {
+        if (proceed) {
+          await handleEvent(api, event);
         if (event.type === "message_reply" && event.messageReply) {
           const replyMessageID = event.messageReply.messageID;
           if (global.Kagenou.replies[replyMessageID]) {
@@ -352,88 +322,71 @@ const startListeningForMessages = (api) => {
                 data: { senderID: event.senderID, threadID: event.threadID, messageID: event.messageID },
               });
               global.Kagenou.replyListeners.delete(replyMessageID);
-            } else {
-              console.error("Callback is not a function for messageID:", replyMessageID);
             }
             return;
           }
         }
-        if (["message", "message_reply"].includes(event.type)) {
-          event.attachments = event.attachments || [];
-          await handleEvent(api, event);
-          await handleMessage(api, event);
-          handleAuroraCommand(api, event);
-        }
-        if (event.type === "event" && event.logMessageType === "log:subscribe") {
-          const threadID = event.threadID;
-          const addedUsers = event.logMessageData.addedParticipants || [];
-          console.log("Added participants:", addedUsers);
-          console.log("Bot's user ID:", api.getCurrentUserID());
-          const botWasAdded = addedUsers.some(user => user.userFbId === api.getCurrentUserID());
-          if (botWasAdded) {
-            console.log(`Bot was added to thread ${threadID}`);
-            if (db) {
-              try {
-                const threadInfo = await api.getThreadInfo(threadID);
-                const threadName = threadInfo.name || `Unnamed Thread (ID: ${threadID})`;
-                await db.db("threads").updateOne(
-                  { threadID },
-                  { $set: { threadID, name: threadName } },
-                  { upsert: true }
-                );
-                console.log(`[ThreadList] Saved thread ${threadID}: ${threadName} to MongoDB`);
-              } catch (error) {
-                console.error(`[ThreadList] Failed to save thread ${threadID} to MongoDB:`, error);
-              }
-            } else {
-              console.warn("[ThreadList] Database not initialized, cannot save thread info");
-            }
-            if (
-              !global.threadState.active.has(threadID) &&
-              !global.threadState.approved.has(threadID) &&
-              !global.threadState.pending.has(threadID)
-            ) {
-              global.threadState.pending.set(threadID, { addedAt: new Date() });
-              console.log(`Added thread ${threadID} to pending state`);
-              api.sendMessage(`Thank you for inviting me here! ThreadID: ${threadID}`, threadID);
-              try {
-                await api.changeNickname(config.botName, threadID, api.getCurrentUserID());
-                console.log(`Nickname changed to ${config.botName} in thread ${threadID}`);
-              } catch (error) {
-                console.error(`Failed to change nickname in thread ${threadID}:`, error);
-              }
+      if (["message", "message_reply"].includes(event.type)) {
+        event.attachments = event.attachments || [];
+        await handleMessage(api, event);
+        handleAuroraCommand(api, event);
+      }
+      if (event.type === "message_reaction") {
+        await handleReaction(api, event);
+      }
+      if (event.type === "event" && event.logMessageType === "log:subscribe") {
+        const threadID = event.threadID;
+        const addedUsers = event.logMessageData.addedParticipants || [];
+        const botWasAdded = addedUsers.some(user => user.userFbId === api.getCurrentUserID());
+        if (botWasAdded) {
+          if (global.db) {
+            try {
+              const threadInfo = await api.getThreadInfo(threadID);
+              const threadName = threadInfo.name || `Unnamed Thread (ID: ${threadID})`;
+              await global.db.db("threads").updateOne(
+                { threadID },
+                { $set: { threadID, name: threadName } },
+                { upsert: true }
+              );
+            } catch (error) {
             }
           }
-        }
-        if (event.type === "message_reaction") {
-          await handleReaction(api, event);
-        }
-        if (event.type === "message" && event.body && event.body.startsWith(config.Prefix[0])) {
-          const words = event.body.trim().split(/ +/);
-          const commandName = words[0].slice(config.Prefix[0].length).toLowerCase();
-          const args = words.slice(1);
-          if (commandName === "approve" && config.admins.includes(event.senderID)) {
-            if (args[0] && args[0].toLowerCase() === "pending") return;
-            if (args.length > 0) {
-              const targetThreadID = args[0].trim();
-              if (/^\d+$/.test(targetThreadID) || /^-?\d+$/.test(targetThreadID)) {
-                if (global.threadState.pending.has(targetThreadID)) {
-                  global.threadState.pending.delete(targetThreadID);
-                  global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
-                  console.log(`Approved thread ${targetThreadID}`);
-                  api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
-                } else if (!global.threadState.approved.has(targetThreadID)) {
-                  global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
-                  console.log(`Directly approved thread ${targetThreadID}`);
-                  api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
-                }
-              }
+          if (
+            !global.threadState.active.has(threadID) &&
+            !global.threadState.approved.has(threadID) &&
+            !global.threadState.pending.has(threadID)
+          ) {
+            global.threadState.pending.set(threadID, { addedAt: new Date() });
+            api.sendMessage(`Thank you for inviting me here! ThreadID: ${threadID}`, threadID);
+            try {
+              await api.changeNickname(global.config.botName, threadID, api.getCurrentUserID());
+            } catch (error) {
             }
           }
         }
       }
+      if (event.type === "message" && event.body && event.body.startsWith(global.config.Prefix[0])) {
+        const words = event.body.trim().split(/ +/);
+        const commandName = words[0].slice(global.config.Prefix[0].length).toLowerCase();
+        const args = words.slice(1);
+        if (commandName === "approve" && global.config.admins.includes(event.senderID)) {
+          if (args[0] && args[0].toLowerCase() === "pending") return;
+          if (args.length > 0) {
+            const targetThreadID = args[0].trim();
+            if (/^\d+$/.test(targetThreadID) || /^-?\d+$/.test(targetThreadID)) {
+              if (global.threadState.pending.has(targetThreadID)) {
+                global.threadState.pending.delete(targetThreadID);
+                global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
+                api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
+              } else if (!global.threadState.approved.has(targetThreadID)) {
+                global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
+                api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
+              }
+              }
+            }
+          }
+        }
     } catch (error) {
-      console.error("Error in message listener:", error);
     }
   });
 };
@@ -443,34 +396,28 @@ const startListeningWithAutoRestart = (api) => {
   const startListener = () => {
     if (stopListener) {
       stopListener();
-      console.log("Stopped previous listener to prevent duplicates.");
     }
     try {
       stopListener = startListeningForMessages(api);
-      console.log("Started new listener.");
     } catch (err) {
-      console.error("Failed to start listener, retrying in 5 seconds:", err);
       setTimeout(startListener, 5000);
     }
   };
   startListener();
   setInterval(() => {
-    console.log("Scheduled listener restart...");
     startListener();
   }, 3600000);
 };
-const express = require('express');
+
+const express = require("express");
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-/*
-*@Optional only
-app.use(express.static(path.join(__dirname, 'dashboard', 'public')));
-*/
+app.use(express.static(path.join(__dirname, "dashboard", "public")));
+
 const startBot = async () => {
   login({ appState }, (err, api) => {
     if (err) {
-      console.error("Fatal error during Facebook login:", err);
       process.exit(1);
     }
     api.setOptions({
@@ -480,7 +427,8 @@ const startBot = async () => {
       updatePresence: true,
       selfListen: false,
       bypassRegion: "pnb",
-      userAgent: "ZmFjZWJvb2tleHRlcm5hbGhpdC8xLjEgKCtodHRwOi8vd3d3LmZhY2Vib29rLmNvbS9leHRlcm5hbGhpdF91YXRleHQucGhwKQ==",
+      userAgent:
+        "ZmFjZWJvb2tleHRlcm5hbGhpdC8xLjEgKCtodHRwOi8vd3d3LmZhY2Vib29rLmNvbS9leHRlcm5hbGhpdF91YXRexHQucGhpKQ==",
       online: true,
       autoMarkDelivery: false,
       autoMarkRead: false,
@@ -489,9 +437,9 @@ const startBot = async () => {
     global.api = api;
     startListeningWithAutoRestart(api);
 
-    app.get('/', (req, res) => {
+    app.get("/", (req, res) => {
       const botUID = api.getCurrentUserID();
-      const botName = config.botName || 'KagenouBot';
+      const botName = global.config.botName || "KagenouBotV3";
       res.send(`
         <!DOCTYPE html>
         <html lang="en">
@@ -553,7 +501,7 @@ const startBot = async () => {
                 }
                 .bot-card p {
                     font-size: 1.1em;
-                    margin: 10px0;
+                    margin: 10px 0;
                     color: #b0b0b0;
                 }
                 .bot-card img {
@@ -594,7 +542,7 @@ const startBot = async () => {
                     <h2>${botName}</h2>
                     <p>UID: ${botUID}</p>
                     <p>Status: Active</p>
-                    <p>Prefix: ${config.Prefix[0] || '/'}</p>
+                    <p>Prefix: ${global.config.Prefix[0] || '/'}</p>
                     <img src="https://via.placeholder.com/150" alt="Bot Profile" class="mt-3">
                 </div>
             </div>
@@ -617,7 +565,6 @@ const startBot = async () => {
 
     const dashboardPort = 3000;
     app.listen(dashboardPort, () => {
-      console.log(`[DASHBOARD] Dashboard running on http://localhost:${dashboardPort}`);
     });
   });
 };
