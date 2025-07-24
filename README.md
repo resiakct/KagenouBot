@@ -15,6 +15,8 @@ Welcome to **Official version of KagenouBot ver 4.0.0**, an elite Facebook Messe
 
 - **Kenneth Panio** — He is the one who really advice to modify systems and add functions.
 
+- **Jimmuel Rivera** - Suggesting commands and contributes to our botfile.
+
 
 ---
 
