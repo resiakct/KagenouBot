@@ -107,7 +107,7 @@ const AuroraBetaStyler = require("@aurora/styler")
 const LINE = AuroraBetaStyler;
 
 var test = "A new!"
-console.log(${LINE})
+console.log(LINE)
 console.log(test)
 
 // Result
