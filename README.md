@@ -102,7 +102,7 @@ A law // with a fancy font
 ━━━━━━━━━━━━━━━━━━━
 Developed by: Aljur pogoy // with a bold font because it supports **BOLD**.
 
-can do ${Line}
+can do ${LINE}
 const AuroraBetaStyler = require("@aurora/styler")
 const LINE = AuroraBetaStyler;
 
