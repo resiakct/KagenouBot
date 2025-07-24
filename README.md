@@ -85,28 +85,35 @@ module.exports = {
 
 ### Usage;
 ```js
-const msg = AuroraBetaStyler.format({
+const styler = AuroraBetaStyler.format{
+  styleOutput: ({
+    headerText,
+    headerSymbol = "🏰",
+    headerStyle = "bold",
+    bodyText,
+    bodyStyle = "bold",
+    footerText = "",
+  });
 
-        title: "Law",
-
-        emoji: "📜",
-
-        titlefont: "bold",
-
-        content: "A law",
-
-        contentfont: "fancy", // you can just change to any fonts
-
-        footer: "Developed by: **Aljur pogoy**"
-
-});
-
-console.log(msg)
+console.log(styler)
 
 ━━━『 📜 Law // with a bold font 』━━━
 A law // with a fancy font
 ━━━━━━━━━━━━━━━━━━━
 Developed by: Aljur pogoy // with a bold font because it supports **BOLD**.
+
+can do ${Line}
+const AuroraBetaStyler = require("@aurora/styler")
+const LINE = AuroraBetaStyler;
+
+var test = "A new!"
+console.log(${LINE})
+console.log(test)
+
+// Result
+// ━━━━━━━━━━━━━━
+// A new!
+//
 
 ```
 
