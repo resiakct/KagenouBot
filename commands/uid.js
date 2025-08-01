@@ -1,5 +1,3 @@
-// sorry for pterodactyl 
-
 const axios = require("axios");
 
 module.exports = {

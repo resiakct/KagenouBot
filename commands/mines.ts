@@ -1,4 +1,4 @@
-import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
+import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 
 namespace ShadowBot {
   export interface Command {
@@ -29,7 +29,7 @@ function getRandomInt(min: number, max: number) {
 }
 
 function determineRank(exp: number) {
-  if (exp >= 1000000) return "S";
+  if (exp >= 10000) return "S";
   if (exp >= 5000) return "A";
   if (exp >= 2500) return "B";
   if (exp >= 1000) return "C";

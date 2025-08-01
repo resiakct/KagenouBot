@@ -326,7 +326,7 @@ const itemData = {
 
 module.exports = {
   name: "garden",
-  aliases: ["gag"],
+  aliases: ["g"],
   description: "Manage your Grow A Garden farm, plant seeds, buy gear, eggs, cosmetics, and sell crops",
   usage: "#garden register <name>",
   async run({ api, event, args, db, usersData }) {

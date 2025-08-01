@@ -1,5 +1,3 @@
-// sorry for pterodactyl :0
-
 const moment = require("moment-timezone")
 
 const path = require("path");
@@ -25,6 +23,7 @@ module.exports = {
     try {
 
       const uptime = process.uptime()
+
       const days = Math.floor(uptime / (24 * 3600))
 
       const hours = Math.floor((uptime % (24 * 3600)) / 3600)

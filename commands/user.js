@@ -19,24 +19,14 @@ module.exports = {
   async run({ api, event, args, admins }) {
 
     const { threadID, messageID, senderID } = event;
-
-    // Check if the user is an admin
-
     if (!admins.includes(senderID)) {
-
       return api.sendMessage(
-
         "════『 𝗨𝗦𝗘𝗥 』════\n\n❌ Only admins can use this command.",
-
         threadID,
-
         messageID
-
       );
-
     }
 
-    // Check if action and arguments are provided
 
     if (args.length < 2) {
 
@@ -58,7 +48,6 @@ module.exports = {
 
     let bannedUsers = {};
 
-    // Load bannedUsers
 
     try {
 
@@ -70,7 +59,7 @@ module.exports = {
 
     }
 
-    // Handle actions
+ 
 
     switch (action) {
 
@@ -172,7 +161,7 @@ module.exports = {
 
         }
 
-        // Load balance data
+   
 
         let balanceData = {};
 
@@ -192,7 +181,7 @@ module.exports = {
 
         }
 
-        // Initialize user data if it doesn't exist
+       
 
         if (!balanceData[targetUID]) {
 
@@ -200,7 +189,7 @@ module.exports = {
 
         }
 
-        // Update user's balance in balance.json
+
 
         balanceData[targetUID].balance = (balanceData[targetUID].balance || 0) + amount;
 

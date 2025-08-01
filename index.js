@@ -1,5 +1,6 @@
-/* 
-* @Author Aljur Pogoy 
+
+/*
+* @Author Aljur Pogoy
 * Bot Developed exact December 24 11:58 PM 2024
 * @Moderators Aljur pogoy, Kenneth Panio, Liane Cagara
 * Thanks to them

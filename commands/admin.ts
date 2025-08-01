@@ -1,4 +1,4 @@
-import AuroraBetaStyler from "@aurora/styler"; 
+import AuroraBetaStyler from "@aurora/styler"; // Adjust path if necessary
 const { LINE } = AuroraBetaStyler;
 import * as fs from "fs";
 import * as path from "path";
@@ -14,6 +14,7 @@ const adminCommand: ShadowBot.Command = {
     const { threadID, messageID, senderID, body, messageReply } = event;
     const configPath = path.join(__dirname, "..", "config.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    let vips = Array.isArray(config.vips) ? [...config.vips] : [];
     let admins = Array.isArray(config.admins) ? [...config.admins] : [];
     let moderators = Array.isArray(config.moderators) ? [...config.moderators] : [];
     let developers = Array.isArray(config.developers) ? [...config.developers] : [];
@@ -51,16 +52,19 @@ const adminCommand: ShadowBot.Command = {
           resolve(info);
         }, messageID);
       }) as { messageID: string };
+
+      // Store reaction data with the original senderID as authorID
       const normalizedMessageID = messageInfo.messageID.trim().replace(/\s+/g, '');
-      console.log("[DEBUG] Storing reaction data for MessageID:", normalizedMessageID, "with authorID:", senderID);
+      
       global.reactionData.set(normalizedMessageID, {
         messageID: normalizedMessageID,
         threadID: threadID,
-        authorID: senderID, 
+        authorID: senderID, // Ensure this is the user’s ID, not the bot’s
         callback: async ({ api, event, reaction }) => {
           if (reaction === "👍") {
             const configPath = path.join(__dirname, "..", "config.json");
             const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+            const vips = Array.isArray(config.vips) ? [...config.vips] : [];
             const admins = Array.isArray(config.admins) ? [...config.admins] : [];
             const moderators = Array.isArray(config.moderators) ? [...config.moderators] : [];
             const developers = Array.isArray(config.developers) ? [...config.developers] : [];
@@ -83,6 +87,7 @@ const adminCommand: ShadowBot.Command = {
             const devNames = await getUserNames(developers);
             const modNames = await getUserNames(moderators);
             const adminNames = await getUserNames(admins);
+            const vipsNames = await getUserNames(vips);
 
             const bodyText = `
 👑 𝗗𝗲𝘃𝗲𝗹𝗈𝗽𝗲𝗿𝘀:
@@ -97,6 +102,11 @@ ${LINE}
 
 ⚖️ 𝗔𝗱𝗺𝗶𝗻𝘀:
 ${adminNames}
+
+${LINE}
+
+🎭 𝗩𝗜𝗣𝘀:
+${vipsNames}
             `.trim();
 
             const fullListMessage = AuroraBetaStyler.styleOutput({
@@ -144,12 +154,12 @@ ${adminNames}
         uid = args[1];
         role = parseInt(args[2]) || 1;
       }
-      if (role < 1 || role > 3) {
+      if (role < 1 || role > 4) {
         const errorMessage = AuroraBetaStyler.styleOutput({
           headerText: "Error",
           headerSymbol: "❌",
           headerStyle: "bold",
-          bodyText: "Role must be 1 (admin), 2 (moderator), or 3 (developer).",
+          bodyText: "Role must be 1 (admin), 2 (moderator), or 3 (developer) or 4 (VIPs).",
           bodyStyle: "sansSerif",
           footerText: "Developed by: **Aljur pogoy**",
         });
@@ -179,7 +189,7 @@ ${adminNames}
         headerText: "Success",
         headerSymbol: "✅",
         headerStyle: "bold",
-        bodyText: `Added ${name} (UID: ${uid}) as ${role === 3 ? "Developer" : role === 2 ? "Moderator" : "Admin"} (role ${role}).`,
+        bodyText: `Added ${name} (UID: ${uid}) as ${ role === 4 ? "VIPs" : role === 3 ? "Developer" : role === 2 ? "Moderator" : "Admin"} (role ${role}).`,
         bodyStyle: "sansSerif",
         footerText: "Developed by: **Aljur pogoy**",
       });
@@ -242,6 +252,8 @@ ${adminNames}
   },
   onReaction: async ({ api, event, reaction }) => {
     const { threadID, messageID, senderID } = event;
+    
+    // This is a fallback and can be removed if the inline callback works
   },
 };
 

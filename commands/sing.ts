@@ -1,4 +1,4 @@
-import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
+import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 import * as fs from "fs";
 import * as path from "path";
 import axios from "axios";
@@ -22,7 +22,7 @@ namespace ShadowBot {
 const singCommand: ShadowBot.Command = {
   config: {
     name: "sing",
-    author: "aljur pogoy | aryan",
+    author: "Aljur pogoy",
     description: "Sing or play a song based on the provided name.",
     usage: "sing <song name> (e.g., /sing Shape of You)",
     aliases: ["music", "song"],
@@ -40,7 +40,7 @@ const singCommand: ShadowBot.Command = {
         headerStyle: "bold",
         bodyText: "Please provide a song name (e.g. `sing Shape of You`).",
         bodyStyle: "bold",
-        footerText: "Credits to: **Aryan**",
+        footerText: "Developed by: **ArYAN**",
       });
       await api.sendMessage(errorMessage, threadID, messageID);
       return;

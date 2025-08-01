@@ -12,7 +12,7 @@ namespace ShadowBot {
       aliases?: string[];
       category?: string;
     };
-    run: (context: { api: any; event: any; args: string[]; db?: { db: (collectionName: string) => any } | null }) => Promise<void>;
+    run: (context: { api: any; event: any; prefix: string; args: string[] }) => Promise<void>;
   }
 }
 
@@ -20,11 +20,11 @@ const helpCommand: ShadowBot.Command = {
   config: {
     name: "help",
     description: "Displays all available commands or detailed info about a specific command",
-    usage: "help or help <command> or help <page> or help all",
+    usage: "/help or /help <command> or /help <page> or /help all",
     aliases: [],
     category: "Utility"
   },
-  run: async ({ api, event, args, db }) => {
+  run: async ({ api, event, prefix, args }) => {
     const { threadID, messageID } = event;
     const commandsDir = path.join(__dirname, "..", "commands");
     if (!fs.existsSync(commandsDir)) {
@@ -47,7 +47,7 @@ const helpCommand: ShadowBot.Command = {
           const commandModule = require(commandPath);
           const command = commandModule.default || commandModule;
           const commandName = file.replace(/\.js|\.ts/, "");
-          if (typeof command !== "object" || !command.name) {
+          if (typeof command !== "object" || !command.config?.name) {
             return;
           }
           if (command.handleEvent) {
@@ -103,7 +103,7 @@ const helpCommand: ShadowBot.Command = {
         delete require.cache[require.resolve(commandPath)];
         const commandModule = require(commandPath);
         const command = commandModule.default || commandModule;
-        if (typeof command !== "object" || !command.name) {
+        if (typeof command !== "object" || !command.config?.name) {
           await new Promise(resolve => {
             api.sendMessage(styledMessage("Error", `❌ Invalid command: ${commandName}`, "⚠️"), threadID, (err: any, info: any) => {
               sentMessageID = info?.messageID;
@@ -113,12 +113,12 @@ const helpCommand: ShadowBot.Command = {
           return;
         }
         const bodyText = `
-Name: ${command.name || "N/A"}
+Name: ${command.config?.name || "N/A"}
 Category: ${command.config?.category || "N/A"}
 Description: ${command.config?.description || "No description available"}
 Author: ${command.config?.author || "Cid Kagenou"}
 Version: ${command.config?.version || "1.0"}
-Usage: ${command.config?.usage || `/${command.name}`}
+Usage: ${command.config?.usage || `/${command.config?.name}`}
         `.trim();
         await new Promise(resolve => {
           api.sendMessage(styledMessage("Command Info", bodyText, "ℹ️"), threadID, (err: any, info: any) => {
@@ -163,8 +163,8 @@ ${page === 1 && eventList.length > 0 ? eventList.join("\n") : ""}
 ${LINE}
 📖 𝖯𝖺𝗀𝖾 ${page}/${totalPages}
 ${totalPages > 1 ? "> 🔄 𝖭𝖾𝗑𝗍 𝗉𝖺𝗀𝖾: /𝗁𝖾𝗅𝗉 " + (page + 1) + "\n" : ""}
- ℹ️ 𝖣𝖾𝗍𝖺𝗂𝗅𝗌: ${config.Prefix}𝗁𝖾𝗅𝗉 <𝖼𝗈𝗆𝗆𝖺𝗇𝖽>
- 🌟 𝖠𝗅𝗅 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌: /𝗁𝖾𝗅𝗉 𝖺𝗅𝗅
+ ℹ️ 𝖣𝖾𝗍𝖺𝗂𝗅𝗌: ${prefix}𝗁𝖾𝗅𝗉 <𝖼𝗈𝗆𝗆𝖺𝗇𝖽>
+ 🌟 𝖠𝗅𝗅 𝖢𝗈𝗆𝗆𝖺𝗇𝖽𝗌: ${prefix}help 𝖺𝗅𝗅
  🌟 𝖤𝗇𝗃𝗈𝗒 𝖢𝗂𝖽 𝖪𝖺𝗀𝖾𝗇𝗈𝗎 𝖡𝗈𝗍!
     `.trim();
     await new Promise(resolve => {

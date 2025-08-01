@@ -11,6 +11,8 @@ module.exports = {
   role: 0,
 
   cooldown: 5,
+    
+  aliases: ["translate","tran"],
 
   async run({ api, event, args }) {
 

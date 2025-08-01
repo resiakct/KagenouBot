@@ -1,10 +1,10 @@
 const axios = require("axios");
 const path = require("path");
-const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugin", "aurora-beta-styler"));
+const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugins", "aurora-beta-styler"));
 module.exports = {
   name: "advice",
   description: "Get random advice from the Rapido API",
-  author: "Aljur Pogoy | Rapido",
+  author: "Aljur Pogoy",
   role: 0,
   async run({ api, event, args }) {
     const { threadID, messageID } = event;
@@ -23,7 +23,7 @@ module.exports = {
       await api.sendMessage(message, threadID, messageID);
     } catch (error) {
       const errorMessage = styledMessage("Error", "Failed to fetch advice. Please try again later.", "❌");
-      await api.sendMessage(errorMessage, threadID, messageID);
+      await api.sendMessage(errorMessage, threadID, messageID);kk
       await api.setMessageReaction("❌", messageID, () => {});
     }
   }

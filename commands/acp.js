@@ -4,9 +4,8 @@ const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugins", "
 module.exports = {
   name: "acp",
   description: "Accepts friend requests from users",
-  author: "Aljur Pogoy | Francis Loyd Raval",
-  aliases: ["accept"],
-  role: 1,
+  author: "Aljur Pogoy",
+  role: 2,
   async run({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
     const styledMessage = (header, body, symbol) => AuroraBetaStyler.styleOutput({
@@ -15,7 +14,7 @@ module.exports = {
       headerStyle: "bold",
       bodyText: body,
       bodyStyle: "bold",
-      footerText: "Developed by: **Aljur Pogoy** | **Francis loyd raval**"
+      footerText: "Developed by: **Aljur Pogoy**"
     });
     const handleApprove = async (targetUID) => {
       const form = {

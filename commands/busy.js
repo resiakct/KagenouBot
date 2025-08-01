@@ -5,7 +5,7 @@ const busyCommand = {
   config: {
     name: 'busy',
     description: 'Set, list, or remove global busy messages for users across all threads',
-    usage: 'busy set <message> | busy list | busy remove',
+    usage: '/busy set <message> | /busy list | /busy remove',
     role: 0,
     cooldown: 5,
     aliases: ['afk'],
@@ -31,15 +31,16 @@ const busyCommand = {
             headerText: 'User Busy',
             headerSymbol: '⏳',
             headerStyle: 'bold',
-            bodyText: `${userName} (${userID}) is busy.\n${LINE}\nReason: ${message}\n`,
-            bodyStyle: 'bold',
-            footerText: 'Developed by: Aljur Pogoy',
+            bodyText: `${userName} (${userID}) is busy.\nReason: ${message}`,
+            bodyStyle: 'monospace',
+            footerText: 'Developed by: **Aljur Pogoy**',
           });
           await api.sendMessage(
             { body: styledMessage, mentions: [{ tag: `@${userName}`, id: userID }] },
             threadID,
-            messageID 
+            messageID // Reply to the mentioning message
           );
+          console.log(`[EVENT_DEBUG] busy reply sent for user ${userID} in thread ${threadID}`);
         }
       }
     } catch (error) {
@@ -50,7 +51,7 @@ const busyCommand = {
         headerStyle: 'bold',
         bodyText: `${LINE}\nFailed to process busy response: ${error.message}\n${LINE}`,
         bodyStyle: 'bold',
-        footerText: 'Developed by: Aljur Pogoy',
+        footerText: 'Developed by: **Aljur Pogoy**',
       });
       await api.sendMessage(styledMessage, threadID, messageID);
     }
@@ -78,6 +79,7 @@ const busyCommand = {
         busyList[user.userID] = user.busy;
       });
     } catch (error) {
+      console.error(`[EVENT_DEBUG] failed to fetch usersData:`, error);
     }
 
     if (subcommand === 'set' && args.length > 1) {
@@ -111,10 +113,12 @@ const busyCommand = {
           headerStyle: 'bold',
           bodyText: `${LINE}\nGlobal busy message set for ${userName} (${senderID}): ${message}\n${LINE}`,
           bodyStyle: 'bold',
-          footerText: 'Developed by: Aljur Pogoy',
+          footerText: 'Developed by: **Aljur Pogoy**',
         });
         await api.sendMessage(styledMessage, threadID, messageID);
+        console.log(`[EVENT_DEBUG] busy set globally for user ${senderID}`);
       } catch (error) {
+        console.error(`[EVENT_DEBUG] busy set failed:`, error);
         const styledMessage = AuroraBetaStyler.styleOutput({
           headerText: 'Error',
           headerSymbol: '❌',

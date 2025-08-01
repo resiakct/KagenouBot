@@ -1,11 +1,11 @@
 const axios = require("axios");
 const path = require("path");
-const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugin", "aurora-beta-styler"));
+const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugins", "aurora-beta-styler"));
 module.exports = {
   name: "quote",
   description: "Get a random quote",
-  author: "Aljur Pogoy",
   aliases: ["q"],
+  author: "Aljur Pogoy | Rapido api",
   role: 0,
   async run({ api, event, args }) {
     const { threadID, messageID } = event;

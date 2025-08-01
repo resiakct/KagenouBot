@@ -18,7 +18,7 @@ module.exports = {
 
     const { threadID, messageID, senderID } = event;
 
- if (!admins.includes(senderID)) {
+  if (!admins.includes(senderID)) {
 
             let errorMessage = `════『 APITEST 』════\n\n`;
 
@@ -32,7 +32,8 @@ module.exports = {
 
             return api.sendMessage(errorMessage, threadID, messageID);
 
- }
+        }
+
 
     if (!args[0] || !args[0].startsWith("http")) {
 

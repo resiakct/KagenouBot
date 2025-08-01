@@ -1,4 +1,4 @@
-import AuroraBetaStyler from '@aurora/styler';
+import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 import axios from "axios";
 import { Stream } from "stream";
 

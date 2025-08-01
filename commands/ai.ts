@@ -1,6 +1,5 @@
 import axios from "axios";
 
-
 namespace ShadowBot {
   export interface Command {
     config: {
@@ -16,8 +15,8 @@ namespace ShadowBot {
 const aiCommand: ShadowBot.Command = {
   config: {
     name: "ai",
-    description: "Interact with the Gemini API for conversational responses.",
-    usage: "/ai <query>",
+    description: "Interact with the GPT-4o API for conversational responses.",
+    usage: "ai <query>",
     nonPrefix: true,
   },
   run: async ({ api, event, args }: { api: any; event: any; args: string[] }) => {
@@ -25,23 +24,25 @@ const aiCommand: ShadowBot.Command = {
     const query = args.join(" ").trim();
 
     if (!query) {
-      return api.sendMessage("Please provide a query. Usage: /ai <query>", threadID, messageID);
+      return api.sendMessage("Please provide a query.", threadID, messageID);
     }
 
     try {
-      const response = await axios.get("https://cid-kagenou-api.onrender.com/api/gemini", {
+      const response = await axios.get("https://kaiz-apis.gleeze.com/api/gpt-4o", {
         params: {
-          p: query,
+          ask: query,
+          uid: senderID,
+          webSearch: "on",
+          apikey: "6345c38b-47b1-4a9a-8a70-6e6f17d6641b",
         },
       });
-      const geminiResponse = response.data.result || "No response from Gemini API.";
-      const message = `${geminiResponse}\n\nReply to this message to continue the conversation.`;
+      const gptResponse = response.data.response || "No response from GPT-4o API.";
+      const message = `${gptResponse}\n\nReply to this message to continue the conversation.`;
 
       let sentMessageID: string;
       await new Promise((resolve, reject) => {
         api.sendMessage(message, threadID, (err, messageInfo) => {
           if (err) {
-            console.error("Error sending Gemini message:", err);
             reject(err);
           } else {
             sentMessageID = messageInfo.messageID;
@@ -49,28 +50,32 @@ const aiCommand: ShadowBot.Command = {
           }
         }, messageID);
       });
+
       if (!global.Kagenou.replyListeners) {
         global.Kagenou.replyListeners = new Map();
       }
+
       const handleReply = async (ctx: { api: any; event: any; data?: any }) => {
         const { api, event } = ctx;
         const { threadID, messageID } = event;
         const userReply = event.body?.trim() || "";
 
         try {
-          const followUpResponse = await axios.get("https://cid-kagenou-api.onrender.com/api/gemini", {
+          const followUpResponse = await axios.get("https://kaiz-apis.gleeze.com/api/gpt-4o", {
             params: {
-              p: userReply,
+              ask: userReply,
+              uid: senderID,
+              webSearch: "on",
+              apikey: "6345c38b-47b1-4a9a-8a70-6e6f17d6641b",
             },
           });
-          const newGeminiResponse = followUpResponse.data.result || "No response from Gemini API.";
-          const newMessage = `${newGeminiResponse}\n\nReply to this message to continue the conversation.`;
+          const newGptResponse = followUpResponse.data.response || "No response from GPT-4o API.";
+          const newMessage = `${newGptResponse}\n\nReply to this message to continue the conversation.`;
 
           let newSentMessageID: string;
           await new Promise((resolve, reject) => {
             api.sendMessage(newMessage, threadID, (err, newMessageInfo) => {
               if (err) {
-                console.error("Error sending follow-up Gemini message:", err);
                 reject(err);
               } else {
                 newSentMessageID = newMessageInfo.messageID;
@@ -78,16 +83,16 @@ const aiCommand: ShadowBot.Command = {
               }
             }, messageID);
           });
+
           global.Kagenou.replyListeners.set(newSentMessageID, { callback: handleReply });
         } catch (error) {
-          console.error("Error in Gemini reply:", error);
-          api.sendMessage("An error occurred while processing your reply with Gemini API.", threadID, messageID);
+          api.sendMessage("An error occurred while processing your reply with GPT-4o API.", threadID, messageID);
         }
       };
+
       global.Kagenou.replyListeners.set(sentMessageID, { callback: handleReply });
     } catch (error) {
-      console.error("Error querying Gemini API:", error);
-      api.sendMessage("An error occurred while contacting the Gemini API.", threadID, messageID);
+      api.sendMessage("An error occurred while contacting the GPT-4o API.", threadID, messageID);
     }
   },
 };

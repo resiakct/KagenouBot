@@ -3,6 +3,7 @@ import https from "https";
 import fs from "fs";
 import { Readable } from "stream";
 
+/* defined shadowBot ts :) */
 
 namespace ShadowBot {
   export interface Command {
@@ -20,7 +21,7 @@ const mlbbCommand: ShadowBot.Command = {
   config: {
     name: "mlbb",
     description: "Fetch MLBB pro player or hero info with subcommands.",
-    usage: "mlbb <subcommand> <value>\n- Subcommands: pro, hero-info\n- Example: mlbb pro Kairi, mlbb hero-info Hanzo",
+    usage: "/mlbb <subcommand> <value>\n- Subcommands: pro, hero-info\n- Example: /mlbb pro Kairi, /mlbb hero-info Hanzo",
     nonPrefix: true,
   },
   run: async ({ api, event, args }: { api: any; event: any; args: string[] }) => {
@@ -85,6 +86,7 @@ MLBB Pro Player Details:
             if (photoUrl) {
               let attachmentStream;
               try {
+                // Create a readable stream from the HTTP response
                 attachmentStream = await new Promise((resolve, reject) => {
                   https.get(photoUrl, (res) => {
                     if (res.statusCode !== 200) {
@@ -114,7 +116,8 @@ MLBB Pro Player Details:
                   }, messageID);
                 });
               } catch (attachmentError) {
-                console.error("Stream Failed:", attachmentError.message);
+                console.error("Stream attachment failed, falling back to file:", attachmentError.message);
+                // Fallback: Save to temporary file and use createReadStream
                 const filePath = `/tmp/mlbb_pro_photo_${Date.now()}.png`;
                 await new Promise((resolve, reject) => {
                   https.get(photoUrl, (res) => {

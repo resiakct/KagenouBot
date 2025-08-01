@@ -1,7 +1,9 @@
-import AuroraBetaStyler from "@aurora/styler"; 
+import AuroraBetaStyler from "@aurora/styler"; // Adjust path if necessary
 const { LINE } = AuroraBetaStyler;
 import * as fs from "fs";
 import * as path from "path";
+
+
 
 const file: ShadowBot.Command = {
   config: {

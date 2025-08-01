@@ -1,62 +1,115 @@
 const axios = require("axios");
-const fs = require("fs-extra");
-import AuroraBetaStyler from "../core/plugin/aurora-beta-styler";
 
 module.exports = {
+
   name: "ss",
-  description: "Take a screenshot of a webpage. Usage: #ss <url>",
-  author: "Aljur pogoy",
-  version: "4.0.0",
-  role: 3,
-  async run({ api, event, args }) {
-    const { threadID, messageID } = event;
 
-    let code = args.join(" ").trim();
-    if (event.messageReply && event.messageReply.body) code = event.messageReply.body;
+  author: "Aljur Pogoy",
 
-    if (!code) {
-      const styledMessage = AuroraBetaStyler.styleOutput({
-        headerText: "Screenshot Command",
-        headerSymbol: "📸",
-        headerStyle: "bold",
-        bodyText: "Please provide a URL to take a screenshot (e.g., #ss https://www.facebook.com).",
-        bodyStyle: "bold",
-        footerText: "Developed by: **Aljur pogoy**",
-      });
-      return api.sendMessage(styledMessage, threadID, messageID);
+  version: "3.0.0",
+
+  description: "Take a screenshot of a website and send as attachment in real-time (Admin only). Usage: /ss <url>",
+
+  async run({ api, event, args, admins }) {
+
+    const { threadID, messageID, senderID } = event;
+
+    // Check if the user is an admin
+
+    if (!admins.includes(senderID)) {
+
+      return api.sendMessage(
+
+        "════『 𝗦𝗦 』════\n\n❌ Only admins can use this command.",
+
+        threadID,
+
+        messageID
+
+      );
+
     }
 
-    const url = encodeURIComponent(args[0].trim());
-    const apiKey = "6345c38b-47b1-4a9a-8a70-6e6f17d6641b";
-    const apiUrl = `https://kaiz-apis.gleeze.com/api/screenshot?url=${url}&apikey=${apiKey}`;
+    // Validate the URL argument
+
+    if (!args[0] || !args[0].startsWith("http")) {
+
+      return api.sendMessage(
+
+        "════『 �_S𝗦 』════\n\n❌ Please provide a valid URL.\nExample: /ss https://www.facebook.com",
+
+        threadID,
+
+        messageID
+
+      );
+
+    }
+
+    const url = encodeURIComponent(args[0]);
+
+    const apiUrl = `https://kaiz-apis.gleeze.com/api/screenshot?url=${url}`;
 
     try {
-      const response = await axios({
-        method: "GET",
-        url: apiUrl,
-        responseType: "arraybuffer",
+
+      // Fetch the screenshot as a stream
+
+      const response = await axios.get(apiUrl, {
+
+        responseType: "stream",
+
+        headers: {
+
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+
+        },
+
       });
 
-      const tempPath = `./temp/ss_${messageID}.png`;
-      await fs.writeFile(tempPath, response.data);
+      const contentType = response.headers["content-type"] || "";
 
-      await api.sendMessage({
-        body: "Here’s the screenshot of the provided URL!",
-        attachment: fs.createReadStream(tempPath),
-      }, threadID, messageID);
+      if (!contentType.includes("image")) {
 
-      await fs.unlink(tempPath);
+        throw new Error(`Unexpected response type: ${contentType}`);
+
+      }
+
+      // Send the image stream directly as an attachment
+
+      await api.sendMessage(
+
+        {
+
+          attachment: response.data,
+
+        },
+
+        threadID,
+
+        messageID
+
+      );
+
     } catch (error) {
-      const styledMessage = AuroraBetaStyler.styleOutput({
-        headerText: "Screenshot Error",
-        headerSymbol: "❌",
-        headerStyle: "bold",
-        bodyText: `Failed to take screenshot: ${error.message || "Invalid URL or API issue"}`,
-        bodyStyle: "bold",
-        footerText: "Developed by: **Aljur pogoy**",
-      });
-      await api.sendMessage(styledMessage, threadID, messageID);
-      await api.setMessageReaction("❌", messageID, () => {});
+
+      console.error("❌ Error in ss command:", error.message);
+
+      let errorMessage = `════『 𝗦𝗦 』════\n\n`;
+
+      errorMessage += `  ┏━━━━━━━┓\n`;
+
+      errorMessage += `  ┃ 『 𝗜𝗡𝗙𝗢 』 An error occurred while capturing the screenshot.\n`;
+
+      errorMessage += `  ┃ Error: ${error.message}\n`;
+
+      errorMessage += `  ┗━━━━━━━┛\n\n`;
+
+      errorMessage += `> Thank you for using our Cid Kagenou bot`;
+
+      api.sendMessage(errorMessage, threadID, messageID);
+
     }
+
   },
+
 };
