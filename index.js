@@ -387,11 +387,12 @@ const startListeningForMessages = (api) => {
             }
           }
         }
-    } catch (error) {
+   } catch (error) {
       console.error("Error in message listener:", error);
     }
   });
 };
+
 const startListeningWithAutoRestart = (api) => {
   let stopListener = null;
   const startListener = () => {
