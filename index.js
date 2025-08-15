@@ -1,12 +1,4 @@
-
-/*
-* @Author Aljur Pogoy
-* Bot Developed exact December 24 11:58 PM 2024
-* @Moderators Aljur pogoy, Kenneth Panio, Liane Cagara
-* Thanks to them
-*/
-
-require("tsconfig-paths/register");
+require("tsconfig-paths").register();
 require("ts-node").register();
 require("./core/global");
 const { MongoClient } = require("mongodb");
@@ -16,6 +8,7 @@ const login = require("fbvibex");
 const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
 loadAuroraCommands();
 
+/* @GlobalVar */
 global.threadState = { active: new Map(), approved: new Map(), pending: new Map() };
 global.client = { reactionListener: {}, globalData: new Map() };
 global.Kagenou = { autodlEnabled: false, replies: {} };
@@ -63,12 +56,18 @@ const loadBannedUsers = () => {
 
 function getUserRole(uid) {
   uid = String(uid);
+  console.log(`[ROLE_DEBUG] Checking role for UID: ${uid}`);
+  console.log(`[ROLE_DEBUG] Config Contents - Admins: ${JSON.stringify(global.config.admins)}, Moderators: ${JSON.stringify(global.config.moderators)}, Developers: ${JSON.stringify(global.config.developers)}`);
   if (!global.config || !global.config.developers || !global.config.moderators || !global.config.admins) {
+    console.error(`[ROLE_DEBUG] Config is missing or incomplete! Config: ${JSON.stringify(global.config)}`);
     return 0;
   }
   const developers = global.config.developers.map(String);
   const moderators = global.config.moderators.map(String);
   const admins = global.config.admins.map(String);
+global.config.vips.map(String);
+  const vips = global.config.vips.map(String);
+  if (vips.includes(uid)) return 4;
   if (developers.includes(uid)) return 3;
   if (moderators.includes(uid)) return 2;
   if (admins.includes(uid)) return 1;
@@ -83,11 +82,12 @@ async function handleReply(api, event) {
   }
   try {
     await replyData.callback({ ...event, event, api, attachments: event.attachments || [], data: replyData });
+    console.log(`[REPLY] Processed reply for messageID: ${event.messageReply?.messageID}, command: ${replyData.callback.name || "unknown"}`);
   } catch (err) {
+    console.error(`[REPLY ERROR] Failed to process reply for messageID: ${event.messageReply?.messageID}:`, err);
     api.sendMessage(`An error occurred while processing your reply: ${err.message}`, event.threadID, event.messageID);
   }
 }
-
 const loadCommands = () => {
   const retroGradient = require("gradient-string").retro;
   const commandFiles = fs.readdirSync(commandsDir).filter(file => file.endsWith(".js") || file.endsWith(".ts"));
@@ -108,9 +108,20 @@ const loadCommands = () => {
       }
       if (command.handleEvent) global.eventCommands.push(command);
     } catch (error) {
+      console.error(`Error loading command '${file}':`, error);
     }
   }
+  console.log(retroGradient(`[ MAIN SYSTEM COMMANDS ]: ${global.commands.size}`));
+  console.log(retroGradient(`Non-Prefix Commands: ${global.nonPrefixCommands.size}`));
+  console.log(retroGradient(`Event Commands: ${global.eventCommands.length}`));
+  console.log("[COMMANDS_DEBUG] Loaded event commands:", global.eventCommands.map(cmd => ({
+    name: cmd.name || cmd.config?.name || 'unknown',
+    file: cmd.__filename || commandFiles.find(file => require(path.join(commandsDir, file)).default === cmd || require(path.join(commandsDir, file)) === cmd) || 'unknown',
+    handleEvent: !!cmd.handleEvent
+  })));
+  console.log(retroGradient("[ INFO ] Setup Complete!"));
 };
+
 
 loadCommands();
 let appState = {};
@@ -118,9 +129,11 @@ let appState = {};
 try {
   appState = JSON.parse(fs.readFileSync("./appstate.dev.json", "utf8"));
 } catch (error) {
+  console.error("Error loading appstate.json:", error);
 }
 try {
   const configData = JSON.parse(fs.readFileSync(configFile, "utf8"));
+  console.log("[CONFIG] Loaded config.json:", configData);
   global.config = {
     admins: configData.admins || [],
     moderators: configData.moderators || [],
@@ -131,10 +144,12 @@ try {
     ...configData,
   };
 } catch (error) {
+  console.error("[CONFIG] Error loading config.json:", error);
   global.config = { admins: [], moderators: [], developers: [], Prefix: ["/"], botName: "Shadow Garden Bot", mongoUri: null };
 }
 let db = null;
 const uri = global.config.mongoUri || null;
+console.log("[DB] MongoDB URI:", uri);
 if (uri) {
   const client = new MongoClient(uri, { useUnifiedTopology: true });
   const cidkagenou = {
@@ -144,19 +159,24 @@ if (uri) {
   };
   async function connectDB() {
     try {
+      console.log("[DB] Attempting to connect to MongoDB...");
       await client.connect();
+      console.log("[DB] Connected to MongoDB successfully with URI:", uri);
       db = cidkagenou;
       global.db = db;
       const usersCollection = db.db("users");
       const allUsers = await usersCollection.find({}).toArray();
       allUsers.forEach(user => global.usersData.set(user.userId, user.data));
+      console.log("[DB] Synced usersData with MongoDB users.");
     } catch (err) {
+      console.error("[DB] MongoDB connection error, falling back to JSON:", err);
       db = null;
       global.db = null;
     }
   }
   connectDB();
 } else {
+  console.log("[DB] No mongoUri in config.json, falling back to JSON storage. Config:", global.config);
   db = null;
   global.db = null;
 }
@@ -184,6 +204,7 @@ const sendMessage = async (api, messageData) => {
     return new Promise((resolve, reject) => {
       api.sendMessage({ body: message, attachment }, threadID, (err, info) => {
         if (err) {
+          console.error("Error sending message:", err);
           return reject(err);
         }
         if (replyHandler && typeof replyHandler === "function") {
@@ -194,16 +215,17 @@ const sendMessage = async (api, messageData) => {
       }, messageID || null);
     });
   } catch (error) {
+    console.error("Error in sendMessage:", error);
     throw error;
   }
 };
+ 
 const handleMessage = async (api, event) => {
   const { threadID, senderID, body, messageReply, messageID, attachments } = event;
   if (!body && !attachments) return;
   const message = body ? body.trim() : "";
   const words = message.split(/ +/);
   let prefixes = global.config.Prefix;
-  loadBannedUsers();
   if (messageReply && global.Kagenou.replies && global.Kagenou.replies[messageReply.messageID]) {
     return handleReply(api, event);
   }
@@ -226,15 +248,34 @@ const handleMessage = async (api, event) => {
     command = global.nonPrefixCommands.get(commandName);
     if (command) isCommandAttempt = true;
   }
-  if (isCommandAttempt && bannedUsers[senderID]) {
-    return api.sendMessage(`You are banned from using bot commands.\nReason: ${bannedUsers[senderID].reason}`, threadID, messageID);
+  if (isCommandAttempt && global.db) {
+    try {
+      const bannedUsersCollection = global.db.db("bannedUsers");
+      const bannedUser = await bannedUsersCollection.findOne({ userId: senderID.toString() });
+      if (bannedUser) {
+        console.log(`[BAN_DEBUG] Banned user ${senderID} attempted command: ${commandName}, Reason: ${bannedUser.reason}`);
+        return api.sendMessage(
+          `You are banned from using bot commands.\nReason: ${bannedUser.reason}`,
+          threadID,
+          messageID
+        );
+      }
+    } catch (error) {
+      console.error("[DB] Error checking banned user in MongoDB:", error);
+      return api.sendMessage(
+        "Error checking ban status. Please try again later.",
+        threadID,
+        messageID
+      );
+    }
   }
   if (command) {
     const userRole = getUserRole(senderID);
     const commandRole = command.config?.role ?? command.role ?? 0;
     if (userRole < commandRole) {
+      console.log(`[COMMAND_DEBUG] Permission denied for UserID: ${senderID}, Command: ${commandName}`);
       return api.sendMessage(
-        `🛡️ 𝙾𝚗𝚕𝚢 𝙼𝚘𝚍𝚎𝚛𝚊𝚝𝚘𝚛𝚜  𝚘𝚛  𝚑𝚒𝚐𝚑𝚎𝚛 𝚌𝚊𝚗 𝚞𝚜𝚎 𝚝𝚑𝚒𝚜 𝚌𝚘𝚖𝚖𝚊𝚗𝚍.`,
+        `🛡️ 𝙾𝚗𝚕𝚢 𝙼𝚘𝚍𝚎𝚛𝚊𝚝𝚘𝚛𝚜, 𝚅𝙸𝙿𝚜 𝚘𝚛 𝚑𝚒𝚐𝚑𝚎𝚛 𝚌𝚊𝚗 𝚞𝚜𝚎 𝚝𝚑𝚒𝚜 𝚌𝚘𝚖𝚖𝚊𝚗𝚍.`,
         threadID,
         messageID
       );
@@ -263,6 +304,7 @@ const handleMessage = async (api, event) => {
         );
       }
     } catch (error) {
+      console.error(`Failed to execute command '${commandName}':`, error);
       sendMessage(api, { threadID, message: `Error executing command '${commandName}': ${error.message}` });
     }
   } else if (isCommandAttempt) {
@@ -272,10 +314,18 @@ const handleMessage = async (api, event) => {
 
 async function handleReaction(api, event) {
   const { messageID, reaction, threadID, senderID } = event;
+  console.log("[DEBUG] Received reaction event - MessageID:", messageID, "Reaction:", reaction, "ThreadID:", threadID, "SenderID:", senderID);
+  console.log("[DEBUG] Full event:", JSON.stringify(event, null, 2));
   const reactionInfo = global.reactionData.get(messageID);
   if (!reactionInfo) {
+    console.log("[DEBUG] No reaction data found for MessageID:", messageID);
     return;
   }
+  /* Checking for AuthorID */
+  if (reactionInfo.authorID && reactionInfo.authorID !== senderID) {
+  }
+
+  console.log("[DEBUG] Handling reaction:", reaction, "for MessageID:", messageID);
   await reactionInfo.callback({ api, event, reaction, threadID, messageID, senderID });
   global.reactionData.delete(messageID);
 }
@@ -285,6 +335,7 @@ const handleEvent = async (api, event) => {
     try {
       if (command.handleEvent) await command.handleEvent({ api, event, db: global.db });
     } catch (error) {
+      console.error(`Error in event command '${command.config?.name || command.name}':`, error);
     }
   }
 };
@@ -294,6 +345,7 @@ const { preventBannedResponse } = require("./commands/thread");
 const startListeningForMessages = (api) => {
   return api.listenMqtt(async (err, event) => {
     if (err) {
+      console.error("Error listening for messages:", err);
       return;
     }
     try {
@@ -306,7 +358,9 @@ const startListeningForMessages = (api) => {
         }
       }
         if (proceed) {
+            
           await handleEvent(api, event);
+            
         if (event.type === "message_reply" && event.messageReply) {
           const replyMessageID = event.messageReply.messageID;
           if (global.Kagenou.replies[replyMessageID]) {
@@ -323,6 +377,8 @@ const startListeningForMessages = (api) => {
                 data: { senderID: event.senderID, threadID: event.threadID, messageID: event.messageID },
               });
               global.Kagenou.replyListeners.delete(replyMessageID);
+            } else {
+              console.error("Callback is not a function for messageID:", replyMessageID);
             }
             return;
           }
@@ -332,14 +388,19 @@ const startListeningForMessages = (api) => {
         await handleMessage(api, event);
         handleAuroraCommand(api, event);
       }
+
+      /* Handle reaction events */
       if (event.type === "message_reaction") {
         await handleReaction(api, event);
       }
       if (event.type === "event" && event.logMessageType === "log:subscribe") {
         const threadID = event.threadID;
         const addedUsers = event.logMessageData.addedParticipants || [];
+        console.log(`[EVENT_DEBUG] log:subscribe - Added participants: ${JSON.stringify(addedUsers)}`);
+        console.log(`[EVENT_DEBUG] Bot's user ID: ${api.getCurrentUserID()}`);
         const botWasAdded = addedUsers.some(user => user.userFbId === api.getCurrentUserID());
         if (botWasAdded) {
+          console.log(`[EVENT_DEBUG] Bot was added to thread ${threadID}`);
           if (global.db) {
             try {
               const threadInfo = await api.getThreadInfo(threadID);
@@ -349,8 +410,12 @@ const startListeningForMessages = (api) => {
                 { $set: { threadID, name: threadName } },
                 { upsert: true }
               );
+              console.log(`[ThreadList] Saved thread ${threadID}: ${threadName} to MongoDB`);
             } catch (error) {
+              console.error(`[ThreadList] Failed to save thread ${threadID} to MongoDB:`, error);
             }
+          } else {
+            console.warn("[ThreadList] Database not initialized, cannot save thread info");
           }
           if (
             !global.threadState.active.has(threadID) &&
@@ -358,10 +423,13 @@ const startListeningForMessages = (api) => {
             !global.threadState.pending.has(threadID)
           ) {
             global.threadState.pending.set(threadID, { addedAt: new Date() });
+            console.log(`[EVENT_DEBUG] Added thread ${threadID} to pending state`);
             api.sendMessage(`Thank you for inviting me here! ThreadID: ${threadID}`, threadID);
             try {
               await api.changeNickname(global.config.botName, threadID, api.getCurrentUserID());
+              console.log(`[EVENT_DEBUG] Nickname changed to ${global.config.botName} in thread ${threadID}`);
             } catch (error) {
+              console.error(`[EVENT_DEBUG] Failed to change nickname in thread ${threadID}:`, error);
             }
           }
         }
@@ -378,38 +446,42 @@ const startListeningForMessages = (api) => {
               if (global.threadState.pending.has(targetThreadID)) {
                 global.threadState.pending.delete(targetThreadID);
                 global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
+                console.log(`[EVENT_DEBUG] Approved thread ${targetThreadID}`);
                 api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
               } else if (!global.threadState.approved.has(targetThreadID)) {
                 global.threadState.approved.set(targetThreadID, { approvedAt: new Date() });
+                console.log(`[EVENT_DEBUG] Directly approved thread ${targetThreadID}`);
                 api.sendMessage(`Thread ${targetThreadID} has been approved.`, event.threadID);
               }
               }
             }
           }
         }
-   } catch (error) {
+      }
+    } catch (error) {
       console.error("Error in message listener:", error);
     }
   });
 };
 
-const startListeningWithAutoRestart = (api) => {
-  let stopListener = null;
+   const startListeningWithAutoRestart = (api) => {
   const startListener = () => {
-    if (stopListener) {
-      stopListener();
-    }
     try {
-      stopListener = startListeningForMessages(api);
+      startListeningForMessages(api);
+      console.log("Started new listener.");
     } catch (err) {
+      console.error("Failed to start listener, retrying in 5 seconds:", err);
       setTimeout(startListener, 5000);
     }
   };
   startListener();
-  setInterval(() => {
-    startListener();
-  }, 3600000);
-};
+
+  // OPTIONAL — only if you handle restart externally
+  // setInterval(() => {
+  //   console.log("Scheduled listener restart...");
+  //   startListener();
+  // }, 3600000);
+};     
 
 const express = require("express");
 const app = express();
@@ -420,6 +492,7 @@ app.use(express.static(path.join(__dirname, "dashboard", "public")));
 const startBot = async () => {
   login({ appState }, (err, api) => {
     if (err) {
+      console.error("Fatal error during Facebook login:", err);
       process.exit(1);
     }
     api.setOptions({
@@ -567,6 +640,7 @@ const startBot = async () => {
 
     const dashboardPort = 3000;
     app.listen(dashboardPort, () => {
+      console.log(`[DASHBOARD] Dashboard running on http://localhost:${dashboardPort}`);
     });
   });
 };
