@@ -30,7 +30,7 @@ global.nonPrefixCommands = new Map();
 global.eventCommands = [];
 global.appState = {};
 global.reactionData = new Map();
-global.trackUsage = new Map();
+global.usageTracker = new Map();
 
 process.on("unhandledRejection", console.error.bind(console));
 process.on("exit", () => fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData])));
