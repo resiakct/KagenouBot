@@ -319,24 +319,103 @@ const handleMessage = async (api, event) => {
   }
 };
 
+/**
+ * @typedef {Object} UserStats
+ * @property {number} messages 
+ * @property {number} reactions 
+ */
+
+/**
+ * @typedef {Object} ReactionInfo
+ * @property {number} count 
+ * @property {Set<string>} users
+ * @property {Function|null} callback 
+ * @property {string|null} authorID - author Checking for sender
+ * @property {string} threadID 
+ */
+
+/**
+ * Handles a reaction event for a message, updating user and message reaction statistics,
+ * saving data to the database
+ * @async
+ * @param {Object} api 
+ * @param {Object} event 
+ * @param {string} event.messageID - The ID of the message that received the reaction.
+ * @param {string} event.reaction 
+ * @param {string} event.threadID 
+ * @param {string} event.senderID
+ * @returns {Promise<void>}
+ */
 async function handleReaction(api, event) {
   const { messageID, reaction, threadID, senderID } = event;
-  console.log("[DEBUG] Received reaction event - MessageID:", messageID, "Reaction:", reaction, "ThreadID:", threadID, "SenderID:", senderID);
-  console.log("[DEBUG] Full event:", JSON.stringify(event, null, 2));
+  const retroGradient = require("gradient-string").retro;
+  console.log(retroGradient(`[DEBUG] Reaction received: ${reaction} by ${senderID} for MessageID: ${messageID}`));
+  console.log(`[DEBUG] Full event: ${JSON.stringify(event, null, 2)}`);
+
+  /** Track user reactions */
+  /** @type {Map<string, UserStats>} */
+  if (!global.usersData.has(senderID)) {
+    global.usersData.set(senderID, { messages: 0, reactions: 0 });
+  }
+  const userStats = global.usersData.get(senderID);
+  userStats.reactions = (userStats.reactions || 0) + 1;
+  global.usersData.set(senderID, userStats);
+
+  /** Save to DB if connected 
+  * @type {global
+  *
+  */
+  if (global.db) {
+    try {
+      const usersCollection = global.db.db("users");
+      await usersCollection.updateOne(
+        { userId: senderID },
+        { $set: { userId: senderID, data: userStats } },
+        { upsert: true }
+      );
+      console.log(retroGradient(`[DB] Updated user ${senderID} reaction stats in MongoDB`));
+    } catch (error) {
+      console.error(`[DB] Error updating user ${senderID} in MongoDB:`, error);
+    }
+  }
+
+  /** Track reactions per message */
+  /** @type {Map<string, ReactionInfo>} */
+  if (!global.reactionData.has(messageID)) {
+    console.log(retroGradient(`[DEBUG] No reaction data found for MessageID: ${messageID}, initializing with defaults`));
+    global.reactionData.set(messageID, { count: 0, users: new Set(), callback: null, authorID: null, threadID });
+  }
   const reactionInfo = global.reactionData.get(messageID);
-  if (!reactionInfo) {
-    console.log("[DEBUG] No reaction data found for MessageID:", messageID);
+  reactionInfo.count = (reactionInfo.count || 0) + 1;
+  reactionInfo.users = reactionInfo.users || new Set();
+  reactionInfo.users.add(senderID);
+  global.reactionData.set(messageID, reactionInfo);
+  console.log(retroGradient(`[REACTION_STATS] Message ${messageID} has ${reactionInfo.count} total reactions (${reactionInfo.users.size} unique users)`));
+  if (!reactionInfo.callback) {
+    console.log(retroGradient(`[DEBUG] No callback registered for MessageID: ${messageID}`));
     return;
   }
-  /* Checking for AuthorID */
+
+  /** Optional author check */
   if (reactionInfo.authorID && reactionInfo.authorID !== senderID) {
+    console.log(`[DEBUG] Reaction ignored, senderID ${senderID} does not match authorID ${reactionInfo.authorID} - Proceeding for testing`);
   }
 
-  console.log("[DEBUG] Handling reaction:", reaction, "for MessageID:", messageID);
-  await reactionInfo.callback({ api, event, reaction, threadID, messageID, senderID });
-  global.reactionData.delete(messageID);
+  try {
+    console.log(retroGradient(`[DEBUG] Handling reaction: ${reaction} for MessageID: ${messageID}`));
+    await reactionInfo.callback({ api, event, reaction, threadID, messageID, senderID });
+    /** Delete reaction data to match the working function's behavior */
+    global.reactionData.delete(messageID);
+    console.log(retroGradient(`[DEBUG] Removed reaction data for MessageID: ${messageID}`));
+  } catch (error) {
+    console.error(`[CALLBACK ERROR] Failed to execute callback for MessageID: ${messageID}:`, error);
+    await api.sendMessage(
+      `An error occurred while processing your reaction: ${error.message}`,
+      threadID,
+      messageID
+    );
+  }
 }
-
 const handleEvent = async (api, event) => {
   for (const command of global.eventCommands) {
     try {
