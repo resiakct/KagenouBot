@@ -25,7 +25,7 @@ const usageCommand: ShadowBot.Command = {
       const top = usageStats.slice(0, 3);
       const total = usageStats.reduce((sum, [, count]) => sum + count, 0);
 
-      const width = 600, height = 300;
+      const width = 700, height = 300;
       const canvas = createCanvas(width, height);
       const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
 
