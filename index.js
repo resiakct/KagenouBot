@@ -30,6 +30,7 @@ global.nonPrefixCommands = new Map();
 global.eventCommands = [];
 global.appState = {};
 global.reactionData = new Map();
+global.trackUsage = new Map();
 
 process.on("unhandledRejection", console.error.bind(console));
 process.on("exit", () => fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData])));
@@ -80,6 +81,14 @@ global.config.vips.map(String);
   if (admins.includes(uid)) return 1;
   return 0;
 }
+
+global.trackUsage = function (commandName) {
+  const count = global.usageTracker.get(commandName) || 0;
+  global.usageTracker.set(commandName, count + 1);
+};
+global.getUsageStats = function () {
+  return Array.from(global.usageTracker.entries());
+};
 
 async function handleReply(api, event) {
   const replyData = global.Kagenou.replies[event.messageReply?.messageID];
@@ -296,6 +305,7 @@ const handleMessage = async (api, event) => {
     if (cooldownMessage) return sendMessage(api, { threadID, message: cooldownMessage, messageID });
     setCooldown(senderID, commandName, cooldown || 3);
     try {
+      global.trackUsage(command.config.name || commandName);
       if (command.execute) {
         await command.execute(api, event, args, global.commands, prefix, global.config.admins, appState, sendMessage, usersData, global.globalData);
       } else if (command.run) {
