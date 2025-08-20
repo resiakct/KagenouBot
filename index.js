@@ -2,7 +2,7 @@
 
 /* @author Aljur Pogoy
  * @moderators: Kenneth Panio, Liane Cagara 
- * @admins: Aljur Pogoy, Kenneth Panio, GeoTeam
+ * @admins: Aljur Pogoy, Kenneth Panio, GeoTeam.
 */
 
 require("tsconfig-paths").register();
