@@ -31,6 +31,8 @@ global.eventCommands = [];
 global.appState = {};
 global.reactionData = new Map();
 global.usageTracker = new Map();
+global.userXP = new Map();
+global.messageTracker = new Map();
 
 process.on("unhandledRejection", console.error.bind(console));
 process.on("exit", () => fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData])));
@@ -113,7 +115,7 @@ global.getXP = function (userId) {
 };
 
 /**
- * alculate current XP 
+ * calculate current XP 
  * Assumes 100 XP per level
  * @param {string|number} userId
  * @returns {number}
