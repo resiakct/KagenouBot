@@ -6,9 +6,8 @@ const hentaigifCommand: ShadowBot.Command = {
     name: 'hentaigif',
     description: 'Sends a random hentai GIF',
     usage: 'hentaigif',
-    aliases: [],
     category: 'nsfw',
-    role: 4,
+    nsfw: true,
     author: 'Aljur Pogoy',
     nonPrefix: false,
   },
@@ -26,7 +25,7 @@ const hentaigifCommand: ShadowBot.Command = {
       return api.sendMessage(errorMessage, threadID, messageID);
     }
     try {
-      const apiUrl = 'https://kaiz-apis.gleeze.com/api/hentaigif?apikey=5445ac64-628b-446a-a2a7-9fe803592176';
+      const apiUrl = 'https://kaiz-apis.gleeze.com/api/hentaigif?apikey=117cafc8-ef3b-4632-bc1c-13b38b912081';
       const response = await axios.get(apiUrl);
       const gifs = response.data.gifs;
       if (!gifs || !Array.isArray(gifs) || gifs.length === 0) {

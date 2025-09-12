@@ -6,7 +6,7 @@ import AuroraBetaStyler from "@aurora/styler";
 module.exports = {
   config: {
     name: "vampire",
-    version: "7.0.0",
+    version: "2.0.0",
     author: "Aljur Pogoy",
   },
   run: async ({ api, event }) => {
@@ -16,7 +16,7 @@ module.exports = {
       headerText: "Vampire",
       headerSymbol: "🧛",
       headerStyle: "bold",
-      bodyText: "Searching for you, please wait...",
+      bodyText: "Please wait...",
       bodyStyle: "sansSerif",
       footerText: "Developed by: Aljur Pogoy",
     });

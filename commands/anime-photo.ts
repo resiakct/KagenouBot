@@ -8,14 +8,13 @@ module.exports = {
     name: "anime-photo",
     version: "9.0.0",
     aliases: ["animepic", "aniphoto"],
-    author: "Aljur pogoy",
     cooldown: 5,
   },
   run: async ({ api, event }) => {
     const { threadID, messageID } = event
 
     try {
-      const imagePath = path.join(__dirname, "anime-photo.png")
+      const imagePath = path.join(__dirname, "cache", "anime-photo.png")
 
       const response = await axios({
         url: "https://rapido.zetsu.xyz/api/anime-photo",

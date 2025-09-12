@@ -1,11 +1,11 @@
-
 {
   "name": "c",
   "version": "1.0.0",
   "description": "Bot Developed by Aljur Pogoy, and his girlfriend too",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "type": ".cjs"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +15,9 @@
     "@google/generative-ai": "^0.24.1",
     "@types/axios": "^0.9.36",
     "@types/node": "^18.19.100",
+    "@xaviabot/fca-unofficial": "^1.4.0",
     "axios": "^1.9.0",
+    "bad-words": "^4.0.0",
     "body-parser": "^1.20.3",
     "canvas": "^3.2.0",
     "cassidy-styler": "^1.2.3",
@@ -51,10 +53,12 @@
     "priyanshu-fca": "^3.0.0",
     "rapido-fca": "^0.0.1",
     "request": "^2.88.2",
+    "soundcloud.ts": "^0.6.5",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
     "util": "^0.12.5",
+    "uuid": "^11.1.0",
     "validator": "^13.12.0",
     "ws3-fca": "^2.0.1",
     "yt-search": "^2.13.1",

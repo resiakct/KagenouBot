@@ -15,7 +15,7 @@ namespace ShadowBot {
 const aiCommand: ShadowBot.Command = {
   config: {
     name: "ai",
-    description: "Interact with the GPT-4o API for conversational responses.",
+    description: "Interact with the Gemini Vision API for conversational responses.",
     usage: "ai <query>",
     nonPrefix: true,
   },
@@ -26,18 +26,18 @@ const aiCommand: ShadowBot.Command = {
     if (!query) {
       return api.sendMessage("Please provide a query.", threadID, messageID);
     }
-
+// ?ask=Hello&uid=4&apikey=
     try {
-      const response = await axios.get("https://kaiz-apis.gleeze.com/api/gpt-4o", {
+      const response = await axios.get("https://kaiz-apis.gleeze.com/api/aria", {
         params: {
-          ask: query,
+          ask: query, // Changed from 'ask' to 'q' based on the new API
           uid: senderID,
-          webSearch: "on",
-          apikey: "6345c38b-47b1-4a9a-8a70-6e6f17d6641b",
+          apikey: "117cafc8-ef3b-4632-bc1c-13b38b912081",
+          // imageUrl is omitted unless you want to add image support
         },
       });
-      const gptResponse = response.data.response || "No response from GPT-4o API.";
-      const message = `${gptResponse}\n\nReply to this message to continue the conversation.`;
+      const geminiResponse = response.data.response || "No response from Gemini Vision API.";
+      const message = `${geminiResponse}\n\nReply to this message to continue the conversation.`;
 
       let sentMessageID: string;
       await new Promise((resolve, reject) => {
@@ -61,16 +61,16 @@ const aiCommand: ShadowBot.Command = {
         const userReply = event.body?.trim() || "";
 
         try {
-          const followUpResponse = await axios.get("https://kaiz-apis.gleeze.com/api/gpt-4o", {
+          const followUpResponse = await axios.get("https://kaiz-apis.gleeze.com/api/gemini-vision", {
             params: {
-              ask: userReply,
+              q: userReply, // Changed from 'ask' to 'q'
               uid: senderID,
-              webSearch: "on",
-              apikey: "6345c38b-47b1-4a9a-8a70-6e6f17d6641b",
+              apikey: "117cafc8-ef3b-4632-bc1c-13b38b912081",
+              // imageUrl is omitted unless you want to add image support
             },
           });
-          const newGptResponse = followUpResponse.data.response || "No response from GPT-4o API.";
-          const newMessage = `${newGptResponse}\n\nReply to this message to continue the conversation.`;
+          const newGeminiResponse = followUpResponse.data.response || "No response from Gemini Vision API.";
+          const newMessage = `${newGeminiResponse}\n\nReply to this message to continue the conversation.`;
 
           let newSentMessageID: string;
           await new Promise((resolve, reject) => {
@@ -86,13 +86,13 @@ const aiCommand: ShadowBot.Command = {
 
           global.Kagenou.replyListeners.set(newSentMessageID, { callback: handleReply });
         } catch (error) {
-          api.sendMessage("An error occurred while processing your reply with GPT-4o API.", threadID, messageID);
+          api.sendMessage("An error occurred while processing your reply with Gemini Vision API.", threadID, messageID);
         }
       };
 
       global.Kagenou.replyListeners.set(sentMessageID, { callback: handleReply });
     } catch (error) {
-      api.sendMessage("An error occurred while contacting the GPT-4o API.", threadID, messageID);
+      api.sendMessage("An error occurred while contacting the Gemini Vision API.", threadID, messageID);
     }
   },
 };

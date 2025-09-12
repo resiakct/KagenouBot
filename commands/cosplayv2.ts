@@ -2,19 +2,6 @@ import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 import axios from "axios";
 import { Stream } from "stream";
 
-namespace ShadowBot {
-  export interface Command {
-    config: {
-      name: string;
-      description: string;
-      usage: string;
-      aliases?: string[];
-      category?: string;
-      role?: number;
-    };
-    run: (context: { api: any; event: any; args: string[]; db?: { db: (collectionName: string) => any } | null }) => Promise<void>;
-  }
-}
 
 const cosplayv2Command: ShadowBot.Command = {
   config: {
@@ -23,7 +10,7 @@ const cosplayv2Command: ShadowBot.Command = {
     usage: "/cosplayv2",
     aliases: ["goon2"],
     category: "Media 📺",
-    role: 2,
+    nsfw: true,
   },
   run: async ({ api, event }) => {
     const { threadID, messageID, senderID } = event;

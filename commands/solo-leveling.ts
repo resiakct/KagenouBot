@@ -846,8 +846,171 @@ const soloLevelingCommand: ShadowBot.Command = {
   await api.sendMessage(leaderboardMessage, threadID, messageID);
   return;
 }
+   if (action === "s2" && args[1]?.toLowerCase() === "shadowtrain") {
+  if (!userData.nameS2) {
+    const notRegistered = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Season 2",
+      headerSymbol: "⚠️",
+      headerStyle: "bold",
+      bodyText: "You need to register for Season 2 first. Usage: /sl s2 register",
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(notRegistered, threadID, messageID);
+    return;
+  }
+  const shadowName = args[2]?.replace(/\s+/g, "_").toLowerCase();
+  if (!shadowName || !userData.shadowsS2.some(s => s.name.toLowerCase().replace(/\s+/g, "_") === shadowName)) {
+    const invalidShadow = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Season 2 Shadow Train",
+      headerSymbol: "⚠️",
+      headerStyle: "bold",
+      bodyText: `Invalid shadow name. Check your shadows with /sl s2 shadowlist. Usage: /sl s2 shadowtrain <shadow_name>`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(invalidShadow, threadID, messageID);
+    return;
+  }
+  const shadow = userData.shadowsS2.find(s => s.name.toLowerCase().replace(/\s+/g, "_") === shadowName);
+  const materialCost = { magicCrystals: 10, holyCrystals: 5 };
+  if ((userData.inventoryS2.magicCrystals || 0) < materialCost.magicCrystals || (userData.inventoryS2.holyCrystals || 0) < materialCost.holyCrystals) {
+    const insufficientMaterials = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Season 2 Shadow Train",
+      headerSymbol: "❌",
+      headerStyle: "bold",
+      bodyText: `Not enough materials. Required: Magic Crystals x${materialCost.magicCrystals}, Holy Crystals x${materialCost.holyCrystals}`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(insufficientMaterials, threadID, messageID);
+    return;
+  }
+  userData.inventoryS2.magicCrystals = Math.max(0, Number(userData.inventoryS2.magicCrystals || 0) - materialCost.magicCrystals);
+  userData.inventoryS2.holyCrystals = Math.max(0, Number(userData.inventoryS2.holyCrystals || 0) - materialCost.holyCrystals);
+  shadow.level = Math.max(1, Number(shadow.level || 1) + 1);
+  userData.expS2 = Math.max(0, Number(userData.expS2) || 0) + 300;
+  userData.level = Math.max(1, Math.floor(userData.expS2 / 1000) + 1);
+  applyRankProgression(userData);
+  await saveHunterData(db, senderID.toString(), userData);
+  const trainMessage = AuroraBetaStyler.styleOutput({
+    headerText: "Solo Leveling Season 2 Shadow Train",
+    headerSymbol: "🌑",
+    headerStyle: "bold",
+    bodyText: `Trained shadow ${shadow.name} (${shadow.nickname}) to Level ${shadow.level}! Gained 300 EXP. New Level: ${userData.level}, Rank: ${userData.rank}.`,
+    bodyStyle: "bold",
+    footerText: "Developed by: **Aljur pogoy**",
+  });
+  await api.sendMessage(trainMessage, threadID, messageID);
+  return;
+}
+
+if (action === "craft") {
+  const item = args[1]?.toLowerCase()?.replace(/\s+/g, "_");
+  const craftRecipes: { [key: string]: { materials: { [key: string]: number }; effect: string } } = {
+    shadow_blade: { materials: { iron_ore: 5, mana_crystal: 3 }, effect: "Increases damage by 60%" },
+    mystic_armor: { materials: { mythril: 4, dragon_scale: 2 }, effect: "Reduces damage taken by 30%" },
+    void_pendant: { materials: { shadow_essence: 2, mana_crystal: 5 }, effect: "Boosts Mana by 50" },
+  };
+  if (!item || !craftRecipes[item]) {
+    const invalidItem = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Craft",
+      headerSymbol: "⚠️",
+      headerStyle: "bold",
+      bodyText: `Invalid item. Available items: ${Object.keys(craftRecipes).map(k => k.replace("_", " ")).join(", ")}. Usage: /sl craft <item>`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(invalidItem, threadID, messageID);
+    return;
+  }
+  const recipe = craftRecipes[item];
+  const hasMaterials = Object.entries(recipe.materials).every(([mat, qty]) => (userData.inventory.materials[mat] || 0) >= qty);
+  if (!hasMaterials) {
+    const materialList = Object.entries(recipe.materials).map(([mat, qty]) => `${mat.replace("_", " ")} x${qty}`).join(", ");
+    const insufficientMaterials = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Craft",
+      headerSymbol: "❌",
+      headerStyle: "bold",
+      bodyText: `Not enough materials. Required: ${materialList}`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(insufficientMaterials, threadID, messageID);
+    return;
+  }
+  for (const [mat, qty] of Object.entries(recipe.materials)) {
+    userData.inventory.materials[mat] = Math.max(0, Number(userData.inventory.materials[mat] || 0) - qty);
+    if (userData.inventory.materials[mat] <= 0) delete userData.inventory.materials[mat];
+  }
+  if (item === "void_pendant") {
+    userData.stats.mana = Math.max(0, Number(userData.stats.mana) || 0) + 50;
+  } else {
+    userData.equipment.swords[item] = Math.max(1, Number(userData.equipment.swords[item] || 1));
+  }
+  await saveHunterData(db, senderID.toString(), userData);
+  const craftMessage = AuroraBetaStyler.styleOutput({
+    headerText: "Solo Leveling Craft",
+    headerSymbol: "🔨",
+    headerStyle: "bold",
+    bodyText: `Crafted ${item.replace("_", " ")}! ${recipe.effect}`,
+    bodyStyle: "bold",
+    footerText: "Developed by: **Aljur pogoy**",
+  });
+  await api.sendMessage(craftMessage, threadID, messageID);
+  return;
+}
+
+
+
+if (action === "shadowtrain") {
+  const shadowName = args[1]?.replace(/\s+/g, "_").toLowerCase();
+  if (!shadowName || !userData.shadows.some(s => s.name.toLowerCase().replace(/\s+/g, "_") === shadowName)) {
+    const invalidShadow = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Shadow Train",
+      headerSymbol: "⚠️",
+      headerStyle: "bold",
+      bodyText: `Invalid shadow name. Check your shadows with /sl shadowlist. Usage: /sl shadowtrain <shadow_name>`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(invalidShadow, threadID, messageID);
+    return;
+  }
+  const shadow = userData.shadows.find(s => s.name.toLowerCase().replace(/\s+/g, "_") === shadowName);
+  const materialCost = { mana_crystal: 2 };
+  if ((userData.inventory.materials.mana_crystal || 0) < materialCost.mana_crystal) {
+    const insufficientMaterials = AuroraBetaStyler.styleOutput({
+      headerText: "Solo Leveling Shadow Train",
+      headerSymbol: "❌",
+      headerStyle: "bold",
+      bodyText: `Not enough materials. Required: Mana Crystal x${materialCost.mana_crystal}`,
+      bodyStyle: "bold",
+      footerText: "Developed by: **Aljur pogoy**",
+    });
+    await api.sendMessage(insufficientMaterials, threadID, messageID);
+    return;
+  }
+  userData.inventory.materials.mana_crystal = Math.max(0, Number(userData.inventory.materials.mana_crystal || 0) - materialCost.mana_crystal);
+  if (userData.inventory.materials.mana_crystal <= 0) delete userData.inventory.materials.mana_crystal;
+  shadow.level = Math.max(1, Number(shadow.level || 1) + 1);
+  userData.exp = Math.max(0, Number(userData.exp) || 0) + 200;
+  userData.level = Math.max(1, Math.floor(userData.exp / 1000) + 1);
+  applyRankProgression(userData);
+  await saveHunterData(db, senderID.toString(), userData);
+  const trainMessage = AuroraBetaStyler.styleOutput({
+    headerText: "Solo Leveling Shadow Train",
+    headerSymbol: "🌑",
+    headerStyle: "bold",
+    bodyText: `Trained shadow ${shadow.name} (${shadow.nickname}) to Level ${shadow.level}! Gained 200 EXP. New Level: ${userData.level}, Rank: ${userData.rank}.`,
+    bodyStyle: "bold",
+    footerText: "Developed by: **Aljur pogoy**",
+  });
+  await api.sendMessage(trainMessage, threadID, messageID);
+  return;
+}
    
-    // Existing Season 1 commands (unchanged except for shared functions)
+
     if (action === "register") {
       const name = args[1];
       if (!name) {

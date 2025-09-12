@@ -252,7 +252,7 @@ ${vipsNames}
   },
   onReaction: async ({ api, event, reaction }) => {
     const { threadID, messageID, senderID } = event;
-    
+    console.log("[DEBUG] onReaction triggered:", reaction, "for MessageID:", messageID);
     // This is a fallback and can be removed if the inline callback works
   },
 };

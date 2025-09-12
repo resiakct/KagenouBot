@@ -10,9 +10,10 @@ const spotifyCommand: ShadowBot.Command = {
     usage: 'spotify [song name]',
     aliases: [],
     category: 'music',
-    role: 4,
+    role: 2,
     author: 'Aljur Pogoy',
     nonPrefix: true,
+    cooldown: 100,
   },
   run: async ({ api, event, args }) => {
     const { threadID, messageID, senderID } = event;

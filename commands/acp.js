@@ -5,7 +5,7 @@ module.exports = {
   name: "acp",
   description: "Accepts friend requests from users",
   author: "Aljur Pogoy",
-  role: 2,
+  role: 4,
   async run({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
     const styledMessage = (header, body, symbol) => AuroraBetaStyler.styleOutput({

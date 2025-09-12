@@ -1,4 +1,3 @@
-
 import AuroraBetaStyler from '@aurora/styler';
 
 module.exports = {
@@ -11,25 +10,8 @@ module.exports = {
     role: 3,
   },
   async run({ api, event, args, admins, usersData, db }) {
-    const { threadID, messageID, senderID } = event;
-    if (args.length < 2) {
-      const usageMessage = AuroraBetaStyler.styleOutput({
-        headerText: 'User',
-        headerStyle: 'bold',
-        bodyText: '❌ Usage: /user <action> <UID> [reason/amount]\nActions: ban, unban, give\nExample: /user ban 1234567890 Spamming\n/user give 1234567890 100',
-        bodyStyle: 'sansSerif',
-        footerText: 'Developed by: Aljur Pogoy',
-      });
-      return api.sendMessage(usageMessage, threadID, messageID);
-    }
+    const { threadID, messageID } = event;
 
-    const action = args[0].toLowerCase();
-    const targetUID = args[1];
-
-    /* @Note
-     * Make sure you've set your mongodb. to use this feature the Banning system 
-     */
-    
     if (!db) {
       const errorMessage = AuroraBetaStyler.styleOutput({
         headerText: 'User',
@@ -44,7 +26,61 @@ module.exports = {
     const bannedUsersCollection = db.db("bannedUsers");
     const usersCollection = db.db("users");
 
-    // Handle actions
+    // Handle "ban list" first
+    if (args[0]?.toLowerCase() === "ban" && args[1]?.toLowerCase() === "list") {
+      try {
+        const bannedUsers = await bannedUsersCollection.find({}).toArray();
+        if (bannedUsers.length === 0) {
+          const noBansMessage = AuroraBetaStyler.styleOutput({
+            headerText: 'User',
+            headerStyle: 'bold',
+            bodyText: '✅ No users are currently banned.',
+            bodyStyle: 'sansSerif',
+            footerText: 'Developed by: Aljur Pogoy',
+          });
+          return api.sendMessage(noBansMessage, threadID, messageID);
+        }
+
+        const banList = bannedUsers.map(user =>
+          `UID: ${user.userId}\nReason: ${user.reason}\nBanned At: ${new Date(user.bannedAt).toLocaleString()}\n---`
+        ).join("\n");
+
+        const listMessage = AuroraBetaStyler.styleOutput({
+          headerText: 'User',
+          headerStyle: 'bold',
+          bodyText: `✅ Banned Users:\n${banList}`,
+          bodyStyle: 'sansSerif',
+          footerText: 'Developed by: Aljur Pogoy',
+        });
+        return api.sendMessage(listMessage, threadID, messageID);
+      } catch (error) {
+        console.error("[USER] Error fetching ban list:", error);
+        const errorMessage = AuroraBetaStyler.styleOutput({
+          headerText: 'User',
+          headerStyle: 'bold',
+          bodyText: '❌ Failed to fetch ban list due to a database error.',
+          bodyStyle: 'sansSerif',
+          footerText: 'Developed by: Aljur Pogoy',
+        });
+        return api.sendMessage(errorMessage, threadID, messageID);
+      }
+    }
+
+    // Validate minimum arguments for other actions
+    if (args.length < 2) {
+      const usageMessage = AuroraBetaStyler.styleOutput({
+        headerText: 'User',
+        headerStyle: 'bold',
+        bodyText: '❌ Usage: /user <action> <UID> [reason/amount]\nActions: ban, unban, give, ban list\nExample: /user ban 1234567890 Spamming\n/user give 1234567890 100\n/user ban list',
+        bodyStyle: 'sansSerif',
+        footerText: 'Developed by: Aljur Pogoy',
+      });
+      return api.sendMessage(usageMessage, threadID, messageID);
+    }
+
+    const action = args[0].toLowerCase();
+    const targetUID = args[1];
+
     switch (action) {
       case "ban": {
         if (args.length < 3) {
@@ -153,7 +189,6 @@ module.exports = {
           userData.balance = (userData.balance || 0) + amount;
           usersData.set(targetUID, userData);
 
-          // Update user data in MongoDB
           await usersCollection.updateOne(
             { userId: targetUID },
             { $set: { userId: targetUID, data: userData } },
@@ -185,7 +220,7 @@ module.exports = {
         const errorMessage = AuroraBetaStyler.styleOutput({
           headerText: 'User',
           headerStyle: 'bold',
-          bodyText: '❌ Invalid action. Available actions: ban, unban, give\nUsage: /user <action> <UID> [reason/amount]',
+          bodyText: '❌ Invalid action. Available actions: ban, unban, give, ban list\nUsage: /user <action> <UID> [reason/amount]',
           bodyStyle: 'sansSerif',
           footerText: 'Developed by: Aljur Pogoy',
         });

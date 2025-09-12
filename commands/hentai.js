@@ -9,7 +9,7 @@ const hentaiCommand = {
     description: 'Fetches a random hentai image (NSFW).',
     usage: '/hentai',
     nonPrefix: false,
-    role: 4,
+    nsfw: true,
     author: 'Aljur Pogoy',
     category: 'media',
   },
@@ -22,7 +22,7 @@ const hentaiCommand = {
       const response = await axios.get('https://kaiz-apis.gleeze.com/api/hentai', {
         params: {
           limit: 1,
-          apikey: '5445ac64-628b-446a-a2a7-9fe803592176',
+          apikey: '117cafc8-ef3b-4632-bc1c-13b38b912081',
         },
       });
       const data = response.data;

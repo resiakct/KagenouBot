@@ -4,7 +4,7 @@ const AuroraBetaStyler = require(path.join(__dirname, "..", "core", "plugins", "
 module.exports = {
   name: "quote",
   description: "Get a random quote",
-  aliases: ["q"],
+  aliases: [],
   author: "Aljur Pogoy | Rapido api",
   role: 0,
   async run({ api, event, args }) {

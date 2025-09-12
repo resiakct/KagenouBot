@@ -10,16 +10,18 @@ const warnCommand: ShadowBot.Command = {
     usage: '/warn <@user> [reason] (or reply to a message)',
     aliases: ['warnuser'],
     category: 'admin',
-    role: 2, // Admin role required
+    role: 3, // Admin role required
     author: 'Aljur Pogoy',
     nonPrefix: false,
   },
   async run({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply, mentions } = event;
-    
+    console.log('Warn run:', { threadID, messageID, senderID, body, messageReply, mentions }); // Debug
 
     let targetID: string | undefined;
     let reason = 'No reason provided';
+
+    // Check if targeting via reply or mention
     if (messageReply && messageReply.senderID) {
       targetID = messageReply.senderID;
       reason = body.split(' ').slice(1).join(' ').trim() || reason;
@@ -74,7 +76,7 @@ const warnCommand: ShadowBot.Command = {
           api.removeUserFromGroup(targetID, threadID, (err: any) => {
             if (err) return reject(err);
             console.log(`Kicked ${userName} (${targetID}) from ${threadID} after 3 warnings`);
-            resolve(undefined); /* Explicitly resolve with undefined for Promise<void> */
+            resolve(undefined); // Fix: Explicitly resolve with undefined for Promise<void>
           });
         });
         warningTracker.delete(key);

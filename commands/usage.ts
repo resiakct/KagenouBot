@@ -6,35 +6,44 @@ import AuroraBetaStyler from "@aurora/styler";
 const usageCommand: ShadowBot.Command = {
   config: {
     name: "usage",
-    author: "Aljur Pogoy",
     aliases: ["usages", "commandusage"],
     description: "Show top 3 most used commands with percentage stats",
     cooldown: 5,
     role: 0,
   },
-  run: async ({ api, event }) => {
+  run: async (context: ShadowBot.CommandContext) => {
+    const { api, event } = context;
     const { threadID, messageID } = event;
 
     try {
       const usageStats = global.getUsageStats();
       if (usageStats.length === 0) {
-        return api.sendMessage("⚠️ No usage data yet.", threadID, messageID);
+        const noDataMsg = AuroraBetaStyler.styleOutput({
+          headerText: "Usage Stats",
+          headerSymbol: "📊",
+          headerStyle: "bold",
+          bodyText: "⚠️ No usage data yet.",
+          bodyStyle: "sansSerif",
+          footerText: "Developed by: Aljur Pogoy",
+        });
+        return await api.sendMessage(noDataMsg, threadID, messageID);
       }
 
       usageStats.sort((a, b) => b[1] - a[1]);
       const top = usageStats.slice(0, 3);
       const total = usageStats.reduce((sum, [, count]) => sum + count, 0);
 
-      const width = 700, height = 300;
+      const width = 700;
+      const height = 300;
       const canvas = createCanvas(width, height);
-      const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
+      const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
+      // Bg
       ctx.fillStyle = "#1e293b";
       ctx.fillRect(0, 0, width, height);
-
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 28px Sans";
-      ctx.fillText("📊 Command Usage Stats", 20, 40);
+      ctx.fillText("Command Usage Stats", 20, 40);
 
       const barMaxWidth = 400;
       const barHeight = 30;
@@ -66,23 +75,26 @@ const usageCommand: ShadowBot.Command = {
         headerText: "Usage Stats",
         headerSymbol: "📊",
         headerStyle: "bold",
-        bodyText: "Here are the top 3 most used commands:",
+        bodyText: "Top 3 Used Commands;",
         bodyStyle: "sansSerif",
-        footerText: "Developed by: Aljur Pogoy",
+        footerText: "**Note**: Currents Usage if bot restart, usage will restart too.",
       });
-
-      api.sendMessage(
-        {
-          body: styledMessage,
-          attachment: fs.createReadStream(filePath),
-        },
-        threadID,
-        (err) => {
-          try { fs.unlinkSync(filePath); } catch {}
-          if (err) console.error("Send error:", err);
-        },
-        messageID
-      );
+      try {
+        await api.sendMessage(
+          {
+            body: styledMessage,
+            attachment: fs.createReadStream(filePath),
+          },
+          threadID,
+          messageID
+        );
+      } catch (err) {
+        console.error("Send error:", err);
+      } finally {
+        try {
+          fs.unlinkSync(filePath);
+        } catch {}
+      }
     } catch (error: any) {
       const errorMessage = AuroraBetaStyler.styleOutput({
         headerText: "Usage Stats",
@@ -93,7 +105,7 @@ const usageCommand: ShadowBot.Command = {
         footerText: "Developed by: Aljur Pogoy",
       });
 
-      api.sendMessage(errorMessage, threadID, messageID);
+      await api.sendMessage(errorMessage, threadID, messageID);
     }
   },
 };

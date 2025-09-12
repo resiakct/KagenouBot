@@ -7,7 +7,8 @@ module.exports = {
   aliases: ["goon"],
   description: "Fetch a random cosplay image from the Haji Mix API",
   author: "Aljur Pogoy",
-  role: 2,
+  nsfw: true,
+  cooldown: 5,
   async run({ api, event, args }) {
     const { threadID, messageID, senderID} = event;
     const styledMessage = (header, body, symbol) => AuroraBetaStyler.styleOutput({

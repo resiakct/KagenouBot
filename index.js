@@ -13,6 +13,7 @@ const fs = require("fs-extra");
 const path = require("path");
 const login = require("fbvibex");
 const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
+const chalk = require("chalk");
 loadAuroraCommands();
 
 /* @GlobalVar */
@@ -33,9 +34,11 @@ global.reactionData = new Map();
 global.usageTracker = new Map();
 global.userXP = new Map();
 global.messageTracker = new Map();
-
-process.on("unhandledRejection", console.error.bind(console));
-process.on("exit", () => fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData])));
+global.nsfwEnabled = new Map();
+process.once("unhandledRejection", console.error);
+process.once("exit", () => {
+  fs.writeFileSync(path.join(__dirname, "database", "globalData.json"), JSON.stringify([...global.globalData]));
+});
 global.userCooldowns = new Map();
 const reloadCommands = () => {
   global.commands.clear();
@@ -43,8 +46,8 @@ const reloadCommands = () => {
   global.eventCommands.length = 0;
   loadCommands();
 };
-global.reloadCommands = reloadCommands;
 
+global.reloadCommands = reloadCommands;
 const commandsDir = path.join(__dirname, "commands");
 const bannedUsersFile = path.join(__dirname, "database", "bannedUsers.json");
 const configFile = path.join(__dirname, "config.json");
@@ -55,7 +58,6 @@ if (fs.existsSync(globalDataFile)) {
   const data = JSON.parse(fs.readFileSync(globalDataFile));
   for (const [key, value] of Object.entries(data)) global.globalData.set(key, value);
 }
-
 const loadBannedUsers = () => {
   try {
     bannedUsers = JSON.parse(fs.readFileSync(bannedUsersFile, "utf8"));
@@ -76,7 +78,7 @@ function getUserRole(uid) {
   const moderators = global.config.moderators.map(String);
   const admins = global.config.admins.map(String);
 global.config.vips.map(String);
-  const vips = global.config.vips.map(String);
+  const vips = (global.config.vips || []).map(String);
   if (vips.includes(uid)) return 4;
   if (developers.includes(uid)) return 3;
   if (moderators.includes(uid)) return 2;
@@ -115,7 +117,7 @@ global.getXP = function (userId) {
 };
 
 /**
- * calculate current XP 
+ * alculate current XP 
  * Assumes 100 XP per level
  * @param {string|number} userId
  * @returns {number}
@@ -125,6 +127,13 @@ global.getLevel = function (userId) {
   return Math.floor(xp / 100);
 };
 
+global.log = {
+  info: (msg) => console.log(chalk.blue("[INFO]"), msg),
+  warn: (msg) => console.log(chalk.yellow("[WARN]"), msg),
+  error: (msg) => console.log(chalk.red("[ERROR]"), msg),
+  success: (msg) => console.log(chalk.green("[SUCCESS]"), msg), 
+  event: (msg) => console.log(chalk.magenta("[EVENT]"), msg)
+};
 async function handleReply(api, event) {
   const replyData = global.Kagenou.replies[event.messageReply?.messageID];
   if (!replyData) return;
@@ -162,15 +171,11 @@ const loadCommands = () => {
       console.error(`Error loading command '${file}':`, error);
     }
   }
-  console.log(retroGradient(`[ MAIN SYSTEM COMMANDS ]: ${global.commands.size}`));
-  console.log(retroGradient(`Non-Prefix Commands: ${global.nonPrefixCommands.size}`));
-  console.log(retroGradient(`Event Commands: ${global.eventCommands.length}`));
-  console.log("[COMMANDS_DEBUG] Loaded event commands:", global.eventCommands.map(cmd => ({
-    name: cmd.name || cmd.config?.name || 'unknown',
-    file: cmd.__filename || commandFiles.find(file => require(path.join(commandsDir, file)).default === cmd || require(path.join(commandsDir, file)) === cmd) || 'unknown',
-    handleEvent: !!cmd.handleEvent
-  })));
-  console.log(retroGradient("[ INFO ] Setup Complete!"));
+    
+global.log.info(`[ MAIN SYSTEM COMMANDS ]: ${global.commands.size}`);
+global.log.success(`Non-Prefix Commands: ${global.nonPrefixCommands.size}`);
+global.log.warn(`Event Commands: ${global.eventCommands.length}`);
+global.log.info("Setup Complete!");  
 };
 
 
@@ -184,7 +189,7 @@ try {
 }
 try {
   const configData = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  console.log("[CONFIG] Loaded config.json:", configData);
+  global.log.success("Config Loaded!");
   global.config = {
     admins: configData.admins || [],
     moderators: configData.moderators || [],
@@ -319,7 +324,17 @@ const handleMessage = async (api, event) => {
         messageID
       );
     }
+  }  
+if (command && command.config?.nsfw) {
+  const isEnabled = global.nsfwEnabled.get(threadID) || false;
+  if (!isEnabled) {
+    return api.sendMessage(
+      "🚫 NSFW commands are disabled in this thread. An admin can enable them using nsfw on.",
+      threadID,
+      messageID
+    );
   }
+}
   if (command) {
     const userRole = getUserRole(senderID);
     const commandRole = command.config?.role ?? command.role ?? 0;
@@ -330,7 +345,8 @@ const handleMessage = async (api, event) => {
         threadID,
         messageID
       );
-    }
+    } /*........*/
+  
     const disabledCommandsList = global.disabledCommands.get("disabled") || [];
     if (disabledCommandsList.includes(commandName)) {
       return api.sendMessage(`${commandName.charAt(0).toUpperCase() + commandName.slice(1)} Command is under maintenance please wait..`, threadID, messageID);
@@ -340,7 +356,7 @@ const handleMessage = async (api, event) => {
     if (cooldownMessage) return sendMessage(api, { threadID, message: cooldownMessage, messageID });
     setCooldown(senderID, commandName, cooldown || 3);
     try {
-      global.trackUsage(command.config.name || commandName);
+      global.trackUsage(commandName);
       if (command.execute) {
         await command.execute(api, event, args, global.commands, prefix, global.config.admins, appState, sendMessage, usersData, global.globalData);
       } else if (command.run) {
@@ -385,7 +401,7 @@ const handleMessage = async (api, event) => {
  * @async
  * @param {Object} api 
  * @param {Object} event 
- * @param {string} event.messageID - The ID of the message that received the reaction.
+ * @param {string} event.messageID
  * @param {string} event.reaction 
  * @param {string} event.threadID 
  * @param {string} event.senderID
@@ -407,7 +423,7 @@ async function handleReaction(api, event) {
   global.usersData.set(senderID, userStats);
 
   /** Save to DB if connected 
-  * @type {global
+  * @type {global}
   *
   */
   if (global.db) {
@@ -472,6 +488,9 @@ const handleEvent = async (api, event) => {
 };
 
 const { preventBannedResponse } = require("./commands/thread");
+
+let currentListener;
+
 
 const startListeningForMessages = (api) => {
   return api.listenMqtt(async (err, event) => {
@@ -595,31 +614,21 @@ const startListeningForMessages = (api) => {
   });
 };
 
-   const startListeningWithAutoRestart = (api) => {
-  const startListener = () => {
-    try {
-      startListeningForMessages(api);
-      console.log("Started new listener.");
-    } catch (err) {
-      console.error("Failed to start listener, retrying in 5 seconds:", err);
-      setTimeout(startListener, 5000);
-    }
-  };
-  startListener();
-
-  // OPTIONAL — only if you handle restart externally
-  // setInterval(() => {
-  //   console.log("Scheduled listener restart...");
-  //   startListener();
-  // }, 3600000);
-};     
-
-const express = require("express");
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "dashboard", "public")));
-
+const startListeningWithAutoRestart = (api) => {
+    const restartListener = () => {
+        console.log("Scheduled listener restart...");
+        if (currentListener && typeof currentListener.stopListening === 'function') {
+            currentListener.stopListening()
+            console.log("Stopped previous listener.");
+        }
+        startListeningForMessages(api);
+        console.log("Started new listener.");
+    };
+    startListeningForMessages(api);
+    console.log("Started initial listener.");
+    setInterval(restartListener, 3600000); 
+    console.log("Scheduled listener restart every 1 hour.");
+};
 const startBot = async () => {
   login({ appState }, (err, api) => {
     if (err) {
@@ -639,141 +648,8 @@ const startBot = async () => {
       autoMarkDelivery: false,
       autoMarkRead: false,
     });
-
-    global.api = api;
-    startListeningWithAutoRestart(api);
-
-    app.get("/", (req, res) => {
-      const botUID = api.getCurrentUserID();
-      const botName = global.config.botName || "KagenouBotV3";
-      res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <title>KagenouBotV3 Portfolio</title>
-            <meta name="description" content="Official portfolio for KagenouBotV3.">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                body {
-                    margin: 0;
-                    font-family: 'Arial', sans-serif;
-                    background: linear-gradient(135deg, #0a0f1c, #1a2a44);
-                    color: #e0e0e0;
-                    overflow-x: hidden;
-                }
-                .header {
-                    background: #1a2a44;
-                    padding: 20px;
-                    text-align: center;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-                }
-                .header h1 {
-                    margin: 0;
-                    font-size: 2.5em;
-                    color: #00ffcc;
-                    text-transform: uppercase;
-                }
-                .nav {
-                    display: flex;
-                    justify-content: center;
-                    gap: 20px;
-                    margin: 20px 0;
-                }
-                .nav a {
-                    color: #00ffcc;
-                    text-decoration: none;
-                    font-size: 1.2em;
-                    padding: 10px 20px;
-                    transition: color 0.3s;
-                }
-                .nav a:hover {
-                    color: #ff4444;
-                }
-                .content {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 40px 20px;
-                    text-align: center;
-                }
-                .bot-card {
-                    background: rgba(26, 42, 68, 0.9);
-                    padding: 30px;
-                    border-radius: 15px;
-                    box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
-                }
-                .bot-card h2 {
-                    color: #00ffcc;
-                    margin-bottom: 20px;
-                }
-                .bot-card p {
-                    font-size: 1.1em;
-                    margin: 10px 0;
-                    color: #b0b0b0;
-                }
-                .bot-card img {
-                    max-width: 150px;
-                    border: 3px solid #00ffcc;
-                    border-radius: 10px;
-                }
-                .footer {
-                    text-align: center;
-                    padding: 20px;
-                    background: #1a2a44;
-                    position: fixed;
-                    bottom: 0;
-                    width: 100%;
-                    color: #b0b0b0;
-                }
-                @media (max-width: 600px) {
-                    .nav {
-                        flex-direction: column;
-                        align-items: center;
-                    }
-                    .content {
-                        padding: 20px 10px;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>KagenouBotV3 Portfolio</h1>
-            </div>
-            <div class="nav">
-                <a href="/">Home</a>
-                <a href="/terms">Terms</a>
-            </div>
-            <div class="content">
-                <div class="bot-card">
-                    <h2>${botName}</h2>
-                    <p>UID: ${botUID}</p>
-                    <p>Status: Active</p>
-                    <p>Prefix: ${global.config.Prefix[0] || '/'}</p>
-                    <img src="https://via.placeholder.com/150" alt="Bot Profile" class="mt-3">
-                </div>
-            </div>
-            <div class="footer">
-                <p>© 2025 Kaizenji | All rights reserved.</p>
-                <p>Time: <span id="time"></span> | Ping: N/A</p>
-            </div>
-            <script>
-                function updateTime() {
-                    const now = new Date();
-                    document.getElementById('time').textContent = now.toLocaleTimeString();
-                }
-                setInterval(updateTime, 1000);
-                updateTime();
-            </script>
-        </body>
-        </html>
-      `);
-    });
-
-    const dashboardPort = 3000;
-    app.listen(dashboardPort, () => {
-      console.log(`[DASHBOARD] Dashboard running on http://localhost:${dashboardPort}`);
-    });
-  });
+    startListeningForMessages(api);
+});
 };
 
 startBot();

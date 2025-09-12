@@ -1,4 +1,4 @@
-const AuroraBetaStyler = require('@aurora/styler');
+import AuroraBetaStyler = require('@aurora/styler');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');

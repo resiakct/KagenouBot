@@ -1,17 +1,6 @@
 import AuroraBetaStyler from "../core/plugins/aurora-beta-styler";
 
-namespace ShadowBot {
-  export interface Command {
-    config: {
-      name: string;
-      description: string;
-      usage: string;
-      aliases?: string[];
-      category?: string;
-    };
-    run: (context: { api: any; event: any; args: string[]; db?: { db: (collectionName: string) => any } | null }) => Promise<void>;
-  }
-}
+
 
 interface PlayerData {
   userID: string;
