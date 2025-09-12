@@ -1,3 +1,4 @@
+
 declare global {
   namespace ShadowBot {
     interface CommandConfig {
@@ -13,7 +14,6 @@ declare global {
       category?: string;
       nsfw?: boolean;
     }
-
 
     interface UserData {
       balance: number;
@@ -33,6 +33,7 @@ declare global {
       xp?: number;
       level?: number;
     }     
+
     interface Command {
       config: CommandConfig;
       run?: (context: { api: any; event: any; prefix: string; args: string[]; db?: ShadowBot.Database | null }) => Promise<void>;
@@ -52,6 +53,7 @@ declare global {
       ) => Promise<void>;
       onReaction?: (context: { api: API; event: any; reaction: any; threadID: string; messageID: string; senderID: string }) => Promise<void>;
     }
+
     interface CommandContext {
       api: API;
       event: any;
@@ -65,10 +67,12 @@ declare global {
         db: (collectionName: string) => any;
       } | null;
     }
+
     interface EventContext {
       api: API;
       event: any;
     }
+
     interface API {
       sendMessage: (
         message: string | { body: string; attachment?: any },
@@ -83,6 +87,7 @@ declare global {
       getThreadInfo: (threadID: string) => Promise<any>;
       getUserInfo: (userIDs: string[]) => Promise<{ [key: string]: { name: string } }>;
     }
+
     type SendMessageFn = (
       api: API,
       messageData: {
@@ -101,6 +106,7 @@ declare global {
       mongoUri: string | null;
       [key: string]: any;
     }
+
     interface ThreadState {
       active: Map<string, { [key: string]: any }>;
       approved: Map<string, { approvedAt: Date }>;
@@ -124,14 +130,12 @@ declare global {
       replyListeners?: Map<string, { callback: (ctx: CommandContext) => Promise<void> }>;
     }
 
-  
     interface ReactionData {
       messageID: string;
       threadID: string;
       authorID?: string;
       callback: (context: { api: API; event: any; reaction: any; threadID: string; messageID: string; senderID: string }) => Promise<void>;
     }
-
 
     interface Database {
       db: (collectionName: string) => any;
@@ -166,6 +170,7 @@ declare global {
   var loadCommands: () => void;
   var appState: any;
   var reactionData: Map<string, ShadowBot.ReactionData>;
+  var threadConfigs: Map<string, { prefix: string }>;
 }
 
 export default {};
