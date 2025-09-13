@@ -23,7 +23,7 @@ const aurora = {
 
 function loadAuroraConfig() {
 
-  const configPath = path.join(__dirname, "config.aurora.json");
+  const configPath = path.join(__dirname, "../config.aurora.json");
 
   if (fs.existsSync(configPath)) {
 
