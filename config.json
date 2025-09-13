@@ -34,5 +34,5 @@
     "/"
   ],
   "botName": "KagenouBot",
-  "mongoUri: "",
+  "mongoUri": ""
 }
