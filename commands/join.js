@@ -12,8 +12,6 @@ module.exports = {
 
     const { threadID, messageID, senderID } = event;
 
-    // Check if the user is an admin
-
     if (!admins.includes(senderID)) {
 
       return api.sendMessage(
@@ -27,8 +25,6 @@ module.exports = {
       );
 
     }
-
-    // Validate threadID argument
 
     if (args.length === 0) {
 
@@ -62,8 +58,6 @@ module.exports = {
 
     try {
 
-      // Add admins to the target thread
-
       for (const adminID of admins) {
 
         try {
@@ -89,8 +83,6 @@ module.exports = {
         }
 
       }
-
-      // Update thread state if not already tracked
 
       if (!global.threadState.active.has(targetThreadID) && 
 
