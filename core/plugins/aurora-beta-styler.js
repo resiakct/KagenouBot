@@ -95,36 +95,64 @@ const aurora = {
   LINE: "━━━━━━━━━━━━━━━",
 };
 
-const AuroraBetaStyler = {
-  styleOutput: ({
-    headerText,
-    headerSymbol = "",
-    headerStyle = "bold",
-    bodyText,
-    bodyStyle = "bold",
-    footerText = "",
-  }) => {
-    const validFonts = Object.keys(auroraBetaFonts);
 
+function styleText(text, font) {
+  if (typeof text !== "string") return "";
+  return text.split(/(https?:\/\/\S+)/g) 
+    .map(part => {
+      if (/^https?:\/\//.test(part)) return part; 
+      return part.split("").map(ch => font[ch] || ch).join("");
+    })
+    .join("");
+}
+
+const AuroraBetaStyler = {
+  defaultOptions: {
+    headerText: "Aurora Header",
+    headerSymbol: "✨",
+    headerStyle: "bold",
+    bodyText: "This is the default body text.",
+    bodyStyle: "sansSerif",
+    footerText: "**Aurora Footer**",
+  },
+
+  styleOutput: (options = {}) => {
+    const {
+      headerText,
+      headerSymbol,
+      headerStyle,
+      bodyText,
+      bodyStyle,
+      footerText,
+    } = { ...AuroraBetaStyler.defaultOptions, ...options };
+
+    /* HEADER */
     let styledHeader = "";
     if (headerText) {
-      const font = auroraBetaFonts[headerStyle];
-      styledHeader = `━━━『 ${headerSymbol} ${headerText.split('').map(char => font[char] || char).join('')} 』━━━`;
+      const font = auroraBetaFonts[headerStyle] || auroraBetaFonts.bold;
+      styledHeader = `━━━『 ${headerSymbol} ${styleText(headerText, font)} 』━━━`;
     }
 
+    /* BODY */
     let styledBody = "";
     if (bodyText) {
-      const font = auroraBetaFonts[bodyStyle];
-      styledBody = bodyText.split('').map(char => font[char] || char).join('');
+      const font = auroraBetaFonts[bodyStyle] || auroraBetaFonts.bold;
+      styledBody = styleText(bodyText, font);
     }
 
+    /* footer */
     let styledFooter = footerText;
     if (footerText) {
-      styledFooter = footerText.replace(/\*\*(.*?)\*\*/g, (_, text) => text.split('').map(char => auroraBetaFonts.bold[char] || char).join(''))
-                              .replace(/\*\*\*(.*?)\*\*\*/g, (_, text) => {
-                                const italicText = text.split('').map(char => auroraBetaFonts.italic[char] || char).join('');
-                                return italicText.split('').map(char => auroraBetaFonts.bold[char] || char).join('');
-                              });
+      styledFooter = footerText
+        .replace(/\*\*\*(.*?)\*\*\*/g, (_, text) => {
+          const italicFont = auroraBetaFonts.italic;
+          const boldFont = auroraBetaFonts.bold;
+          return styleText(styleText(text, italicFont), boldFont);
+        })
+        .replace(/\*\*(.*?)\*\*/g, (_, text) => {
+          const boldFont = auroraBetaFonts.bold;
+          return styleText(text, boldFont);
+        });
     }
 
     return `${styledHeader}\n${styledBody}\n━━━━━━━━━━━━━━━━━━━\n${styledFooter}`;
