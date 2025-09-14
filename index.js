@@ -12,10 +12,9 @@ const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
 const login = require("fbvibex");
-const { handleAuroraCommand, loadAuroraCommands } = require("./core/auroraBoT");
+const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora");
 const chalk = require("chalk");
 loadAuroraCommands();
-
 /* @GlobalVar */
 global.threadState = { active: new Map(), approved: new Map(), pending: new Map() };
 global.client = { reactionListener: {}, globalData: new Map() };
