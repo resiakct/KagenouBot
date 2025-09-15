@@ -1,7 +1,6 @@
 const path = require("path");
 
-/** 
-* @author - AljurDev
+/** * @author - AljurDev
 * @Notice this command is dangerous can restricted your bot due to spamming message, to prevent spamming, modify interval
 * @Notice #2: This command is a trashed and spaghetti cuz it has typeof and typedoc antion
 */
@@ -24,6 +23,11 @@ const path = require("path");
  * @property {Api}
  * @property {Event} event
  */
+
+// Use a global object to store the message index for each thread
+if (!global.spammerState) {
+  global.spammerState = {};
+}
 
 module.exports = {
   config: {
@@ -52,38 +56,42 @@ module.exports = {
     const stopTrigger = "wala na ah";
 
     /** @type {NodeJS.Timeout|null} */
-    let spamInterval = global.spammerIntervals ? global.spammerIntervals[threadID] : null;
+    let spamInterval = global.spammerState[threadID] ? global.spammerState[threadID].interval : null;
+    
+    // START SPAM
     if (body.trim().toLowerCase() === startTrigger && !spamInterval) {
-      let messageIndex = 0;
-
-      spamInterval = setInterval(async () => {
+      // Initialize message index for this specific thread
+      global.spammerState[threadID] = {
+        messageIndex: 0,
+        interval: null
+      };
+      
+      const currentState = global.spammerState[threadID];
+      
+      const interval = setInterval(async () => {
         try {
           const sentMessage = await api.sendMessage(
-            spamMessages[messageIndex % spamMessages.length],
+            spamMessages[currentState.messageIndex % spamMessages.length],
             threadID
           );
 
           await api.setMessageReaction("😆", sentMessage.messageID, (err) => {}, true);
-          messageIndex++;
+          currentState.messageIndex++;
         } catch (error) {
           console.error("Error sending spam message:", error);
-          clearInterval(spamInterval);
-          delete global.spammerIntervals[threadID];
+          clearInterval(currentState.interval);
+          delete global.spammerState[threadID];
         }
-      }, 1000);
+      }, 1500);
 
-      if (!global.spammerIntervals) {
-        /** @type {Record<string, NodeJS.Timeout>} */
-        global.spammerIntervals = {};
-      }
-      global.spammerIntervals[threadID] = spamInterval;
+      currentState.interval = interval;
     }
 
-    /* STOP SPAM */
+    // STOP SPAM
     if (body.trim().toLowerCase() === stopTrigger) {
       if (spamInterval) {
         clearInterval(spamInterval);
-        delete global.spammerIntervals[threadID];
+        delete global.spammerState[threadID];
       }
     }
   },
