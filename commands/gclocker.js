@@ -41,7 +41,7 @@ module.exports = {
     const { threadID, body, logMessageType, logMessageData } = event;
     
     // --- Ilagay ang gusto mong pangalan dito ---
-    const targetName = "Sikat Na Group Chat";
+    const targetName = "gc ngani";
     // ---
 
     const startTrigger = "group name ah";
