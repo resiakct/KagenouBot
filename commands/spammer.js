@@ -8,10 +8,11 @@ module.exports = {
     aliases: ["spam"],
   },
   async run({ api, event, args }) {
-    const { threadID, messageID, type } = event;
+    const { threadID, messageID, body } = event;
 
     let spamInterval;
     const spamMessages = ["ako lang malakas", "de ako lang talaga"]; 
+    const startTrigger = ".";
     const stopTrigger = "wala na ah"; 
 
     // Function to start spamming
@@ -27,13 +28,23 @@ module.exports = {
           console.error("Error sending spam message:", error);
           clearInterval(spamInterval);
         }
-      }, 1500); // 1.5 seconds interval
+      }, 1500); // 1 second interval
     }
 
-    // Check for "Like" reaction to start
-    if (type === "message_reaction" && event.reaction === "👍" && !spamInterval) {
+    // Check for start trigger to begin spamming
+    if (body && body.trim() === startTrigger && !spamInterval) {
       startSpam();
     }
+
+    // Check for stop trigger to end spamming
+    if (body && body.toLowerCase() === stopTrigger) {
+      if (spamInterval) {
+        clearInterval(spamInterval);
+        spamInterval = null; 
+      }
+    }
+  },
+};
 
     // Check for "wala na ah" to stop
     if (event.body && event.body.toLowerCase() === stopTrigger) {
