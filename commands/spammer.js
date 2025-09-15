@@ -24,7 +24,7 @@ const path = require("path");
  * @property {Event} event
  */
 
-// Use a global object to store the message index for each thread
+// Gumawa ng global object para i-store ang message index para sa bawat thread
 if (!global.spammerState) {
   global.spammerState = {};
 }
@@ -60,7 +60,7 @@ module.exports = {
     
     // START SPAM
     if (body.trim().toLowerCase() === startTrigger && !spamInterval) {
-      // Initialize message index for this specific thread
+      // I-initialize ang message index para sa thread na ito
       global.spammerState[threadID] = {
         messageIndex: 0,
         interval: null
