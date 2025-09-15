@@ -7,7 +7,7 @@ module.exports = {
   async run({ api, event, args }) {
     const { threadID, messageID, body } = event;
     const spamMessages = ["ako lang malakas", "de ako lang talaga"]; 
-    const startTrigger = ".";
+    const startTrigger = "game na";
     const stopTrigger = "wala na ah";
     let spamInterval = global.spammerIntervals ? global.spammerIntervals[threadID] : null;
 
