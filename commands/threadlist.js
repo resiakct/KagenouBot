@@ -10,7 +10,7 @@ module.exports = {
 
   author: "Aljur Pogoy",
 
-  role: 3,
+  role: 0,
 
   async run({ api, event, admins }) {
 
