@@ -11,7 +11,7 @@ require("./core/global");
 const { MongoClient } = require("mongodb");
 const fs = require("fs-extra");
 const path = require("path");
-const login = require("fbvibex");
+const { login } = require("ws3-fca");
 const { handleAuroraCommand, loadAuroraCommands } = require("./core/aurora");
 const chalk = require("chalk");
 loadAuroraCommands();
